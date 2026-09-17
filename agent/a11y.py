@@ -140,7 +140,8 @@ def elements():
             continue
         if role in ROLES:
             value = _value(node)
-            display = name or value
+            focused = _focused(node)
+            display = name or value or ("(focused, no label)" if focused else "")
             if display:
                 ext = _extents(node)
                 if ext:
@@ -154,7 +155,7 @@ def elements():
                             "w": ext[2],
                             "h": ext[3],
                             "invokable": _invokable(node),
-                            "focused": _focused(node),
+                            "focused": focused,
                             "value": value,
                             "node": node,
                         }

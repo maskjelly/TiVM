@@ -1,8 +1,23 @@
 up:
+	mkdir -p runs
+	docker compose down --remove-orphans >/dev/null 2>&1 || true
+	docker image prune -f >/dev/null 2>&1 || true
 	docker compose up -d --build
 
 down:
 	docker compose down
+
+clean:
+	docker compose down --remove-orphans >/dev/null 2>&1 || true
+	docker image prune -f
+	docker builder prune -f
+	@echo "artifacts in ./runs are kept; run 'make wipe-runs' to delete them"
+
+wipe-runs:
+	rm -rf runs/*
+
+runs:
+	@ls -1 runs 2>/dev/null | tail -10 || echo "(no runs yet)"
 
 logs:
 	docker compose logs -f desktop

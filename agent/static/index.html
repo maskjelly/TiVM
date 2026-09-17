@@ -109,6 +109,9 @@
   .more { padding: 5px 12px; color: var(--muted); font-size: 11.5px; }
 
   #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; justify-content: flex-end; }
+  .planstrip { padding: 6px 13px; border-bottom: 1px solid var(--border); background: var(--panel-2);
+               color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .planstrip b { color: var(--text); font-weight: 560; }
   .card { border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; background: var(--panel-2); flex: 0 0 auto; }
   .card .head { display: flex; gap: 7px; align-items: center; flex-wrap: nowrap; min-width: 0; }
   .card .n { color: var(--muted); font-size: 11.5px; min-width: 24px; }
@@ -180,7 +183,7 @@
           <span class="hint">one task per line · ⌘/Ctrl+Enter to run</span>
         </div>
         <div class="presets">
-          <button data-task='Open the text editor (Mousepad) and type "hello from Jev"'>editor + type</button>
+          <button data-task='Open a terminal and run "uname -a && node -v && bun -v && git --version"'>check toolchain</button>
           <button data-task='Open the file manager and open the "Documents" folder'>open Documents</button>
           <button data-task='Clone https://github.com/maskjelly/whiteye.in and show its files'>clone a repo</button>
           <button data-task='Open the Web browser and go to example.com'>browse a site</button>
@@ -197,6 +200,7 @@
 
     <section class="panel" style="flex:1; min-height:0;">
       <h2>What the agent is doing</h2>
+      <div class="planstrip" id="planStrip">no plan yet</div>
       <div id="feed"></div>
     </section>
   </div>
@@ -239,6 +243,7 @@ function card(entry) {
       '</div>' +
       (entry.typed ? '<div class="typed mono">typed: ' + esc(entry.typed) + '</div>' : '') +
       (entry.reason ? '<div class="why">' + esc(entry.reason) + '</div>' : '') +
+      (entry.check ? '<div class="why">check: ' + esc(entry.check) + '</div>' : '') +
       '<div class="facts mono">' +
         '<span>perc ' + esc(t.perceive ?? 0) + 'ms</span>' +
         '<span>dec ' + esc(t.decide ?? 0) + 'ms</span>' +
@@ -332,6 +337,12 @@ function render(s) {
   renderTimeline(s.timeline || []);
   renderResults(s.results || []);
   renderSummary(s.results || [], s.running);
+
+  const plan = s.plan || [];
+  const mem = s.memory || '';
+  $('planStrip').innerHTML = plan.length
+    ? '<b>plan</b> ' + plan.map(esc).join(' → ') + (mem ? ' &nbsp;·&nbsp; <b>mem</b> ' + esc(mem) : '')
+    : (s.running ? 'planning…' : 'no plan yet');
 
   const text = (s.log || []).join('\n');
   const log = $('log');

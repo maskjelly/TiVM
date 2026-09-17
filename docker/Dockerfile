@@ -73,6 +73,12 @@ RUN ARCH=$(dpkg --print-architecture) \
        'Icon=/opt/firefox/browser/chrome/icons/default/default128.png' \
        > /usr/share/applications/firefox.desktop
 
+RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
+  && git config --system user.email "agent@tivm.local" \
+  && git config --system user.name "TiVM Agent" \
+  && git config --system init.defaultBranch main \
+  && git config --system advice.detachedHead false
+
 RUN mkdir -p /root/Documents /root/Downloads /root/projects && \
   printf '%s\n' \
     'Welcome to your TiVM sandbox.' \

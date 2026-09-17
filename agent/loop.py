@@ -1,4 +1,8 @@
+import base64
+import json
+import os
 import re
+import shutil
 import threading
 import time
 
@@ -96,6 +100,10 @@ class Runner:
         self.timeline = []
         self.current = {}
         self.task_step = 0
+        self.run_id = ""
+        self.plan_state = []
+        self.memory = ""
+        self.last_check = ""
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
@@ -110,6 +118,44 @@ class Runner:
         if kind == "step":
             self.current = entry
 
+    def _run_dir(self):
+        return os.path.join(config.RUNS_DIR, self.run_id)
+
+    def _prune_runs(self):
+        root = config.RUNS_DIR
+        if not os.path.isdir(root):
+            return
+        dirs = sorted(
+            (d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))),
+            reverse=True,
+        )
+        for old in dirs[config.KEEP_RUNS:]:
+            shutil.rmtree(os.path.join(root, old), ignore_errors=True)
+
+    def _save_task_artifacts(self, index, result):
+        run_dir = self._run_dir()
+        if not self.run_id or not os.path.isdir(run_dir):
+            return
+        data = {k: v for k, v in result.items() if k != "frame"}
+        with open(os.path.join(run_dir, f"task-{index}.json"), "w") as fh:
+            json.dump(data, fh, indent=1)
+        frame = result.get("frame") or ""
+        if frame.startswith("data:image"):
+            raw = base64.b64decode(frame.split(",", 1)[1])
+            with open(os.path.join(run_dir, f"task-{index}-final.jpg"), "wb") as fh:
+                fh.write(raw)
+        with open(os.path.join(run_dir, "timeline.json"), "w") as fh:
+            json.dump(self.timeline, fh, indent=1)
+
+    def _write_run_json(self):
+        run_dir = self._run_dir()
+        if not self.run_id or not os.path.isdir(run_dir):
+            return
+        payload = self.result_payload()
+        payload["tasks"] = [{k: v for k, v in t.items() if k != "frame"} for t in payload["tasks"]]
+        with open(os.path.join(run_dir, "run.json"), "w") as fh:
+            json.dump(payload, fh, indent=1)
+
     def start(self, tasks, max_steps=None):
         with self.lock:
             if self.running:
@@ -122,6 +168,12 @@ class Runner:
             self.running = True
             self.stop_flag = False
             self.started_at = time.time()
+            self.run_id = time.strftime("%Y%m%d-%H%M%S")
+            try:
+                os.makedirs(os.path.join(config.RUNS_DIR, self.run_id), exist_ok=True)
+                self._prune_runs()
+            except OSError as e:
+                self.log(f"cannot write run artifacts: {e}")
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
             return True
@@ -167,6 +219,7 @@ class Runner:
                 else:
                     self.log("no click target given; asking the planner to choose one")
                     self.target_note = True
+                    self.target_note_count += 1
                     return "no click target chosen"
             if action == "click":
                 actions.click(*point)
@@ -195,7 +248,11 @@ class Runner:
             return f'typed "{remaining[0]}"'
 
         if action == "key":
-            key = (answers.get("key") or {}).get("choice") or "Return"
+            key = (answers.get("key") or {}).get("choice")
+            if not key:
+                self.log("key action without a key name; asking the planner to choose one")
+                self.key_note = True
+                return "no key given"
             actions.press_key(key)
             return f"pressed {key}"
 
@@ -208,6 +265,10 @@ class Runner:
                 point = (config.SCREEN_W // 2, config.SCREEN_H // 2)
             actions.scroll(point[0], point[1], action)
             return f"{action} at {point[0]},{point[1]}"
+
+        if action == "wait":
+            actions.wait(config.WAIT_SECONDS)
+            return f"waited {config.WAIT_SECONDS:.0f}s"
 
         actions.wait()
         return "waited"
@@ -282,12 +343,13 @@ class Runner:
                 self._nodes[element["id"]] = node
         return merged
 
-    def _settle(self, previous_thumb):
+    def _settle(self, previous_thumb, timeout=None):
         last = previous_thumb
         stable = 0
         time.sleep(config.SETTLE_MIN)
         started = time.time()
-        while time.time() - started < config.SETTLE_TIMEOUT:
+        limit = timeout or config.SETTLE_TIMEOUT
+        while time.time() - started < limit:
             time.sleep(config.SETTLE_POLL)
             vision.capture()
             current = vision.thumb(vision.RAW_PATH)
@@ -309,7 +371,13 @@ class Runner:
         self.typed = []
         self.no_text_note = False
         self.target_note = False
+        self.key_note = False
+        self.target_note_count = 0
         self.stall = 0
+        self.waits = 0
+        self.plan_state = []
+        self.memory = ""
+        self.last_check = ""
         note = "This is the first step."
 
         for step in range(1, self.max_steps + 1):
@@ -349,9 +417,21 @@ class Runner:
                     state.get("terminal_output"),
                     history,
                     vision.RAW_PATH,
+                    plan_state=self.plan_state,
+                    memory=self.memory,
+                    last_check=self.last_check,
                 )
                 step_openai = usage.get("total_tokens", 0)
                 self.openai_tokens += step_openai
+                if isinstance(plan.get("plan"), list) and plan["plan"]:
+                    self.plan_state = [str(p)[:120] for p in plan["plan"]][:12]
+                if plan.get("memory"):
+                    self.memory = str(plan["memory"])[:300]
+                self.last_check = str(plan.get("check") or "")[:200]
+                if self.plan_state:
+                    self.log("plan: " + " | ".join(self.plan_state[:6]))
+                if self.memory:
+                    self.log(f"memory: {self.memory[:160]}")
                 action = str(plan.get("action") or "wait").strip()
                 target = str(plan.get("target") or "").strip()
                 answers = {
@@ -432,15 +512,28 @@ class Runner:
                 }
 
             signature = (action, target)
-            repeat = repeat + 1 if signature == last_signature else 0
-            last_signature = signature
-            if repeat >= config.ABORT_REPEAT_LIMIT:
-                return {
-                    "task": task,
-                    "passed": False,
-                    "steps": step,
-                    "reason": f"stuck: repeated '{action} {target}' {repeat + 1} times",
-                }
+            if action == "wait":
+                self.waits += 1
+                if self.waits > config.MAX_CONSECUTIVE_WAITS:
+                    self.log(f"waited {self.waits} times with no progress")
+                    return {
+                        "task": task,
+                        "passed": False,
+                        "steps": step,
+                        "reason": f"no progress: waited {config.MAX_CONSECUTIVE_WAITS}+ times "
+                                  "and the command never finished",
+                    }
+            else:
+                self.waits = 0
+                repeat = repeat + 1 if signature == last_signature else 0
+                last_signature = signature
+                if repeat >= config.ABORT_REPEAT_LIMIT:
+                    return {
+                        "task": task,
+                        "passed": False,
+                        "steps": step,
+                        "reason": f"stuck: repeated '{action} {target}' {repeat + 1} times",
+                    }
 
             started = time.perf_counter()
             outcome = self._execute(answers, elements, task)
@@ -450,7 +543,8 @@ class Runner:
             self.history = history
 
             started = time.perf_counter()
-            last_thumb = self._settle(last_thumb)
+            settle_timeout = config.COMMAND_SETTLE_TIMEOUT if action in ("type", "key", "wait") else None
+            last_thumb = self._settle(last_thumb, settle_timeout)
             settle_ms = (time.perf_counter() - started) * 1000
             screen_changed_after_action = vision.diff_ratio(last_thumb, current_thumb) > config.CHANGE_RATIO
 
@@ -473,8 +567,11 @@ class Runner:
             )
             self.no_text_note = False
             self.target_note = False
+            self.key_note = False
 
-            if screen_changed_after_action:
+            if action == "wait":
+                pass
+            elif screen_changed_after_action:
                 self.stall = 0
             else:
                 self.stall += 1
@@ -493,9 +590,21 @@ class Runner:
                     "Pick a different action, or a target whose text already appears on screen."
                 )
             elif self.target_note:
+                if self.target_note_count >= 2:
+                    note = (
+                        "Clicking without a target is impossible and has failed repeatedly. "
+                        "If a window already has keyboard focus, use 'type' directly without clicking. "
+                        "Otherwise set 'target' to a listed element id or give x/y pixels."
+                    )
+                else:
+                    note = (
+                        "The previous action had no target. Set 'target' to one of the listed element ids, "
+                        "or give x/y pixel coordinates from the screenshot."
+                    )
+            elif self.key_note:
                 note = (
-                    "The previous action had no target. Set 'target' to one of the listed element ids, "
-                    "or give x/y pixel coordinates from the screenshot."
+                    "The previous action was 'key' without a key name. Name the key to press, "
+                    "or use 'wait' if you are waiting for a running command."
                 )
             elif low_conf > 0:
                 note = "The last decision had low confidence; pick an obvious, unambiguous target."
@@ -523,6 +632,9 @@ class Runner:
                 ),
                 typed=self.last_typed,
                 reason=plan_reason,
+                check=self.last_check,
+                plan=list(self.plan_state),
+                memory=self.memory,
                 outcome=outcome,
                 changed=screen_changed_after_action,
                 timing={
@@ -565,6 +677,10 @@ class Runner:
                 result["duration_s"] = round(time.time() - task_started, 1)
                 result["frame"] = vision.frame_data_url(element=self.last_element, label=self.last_label)
                 self.results.append(result)
+                try:
+                    self._save_task_artifacts(index, result)
+                except OSError as e:
+                    self.log(f"artifact save failed: {e}")
                 self.emit(
                     "task_end",
                     index=index,
@@ -588,6 +704,10 @@ class Runner:
             self.passed = (
                 len(self.results) == len(self.tasks) and all(r["passed"] for r in self.results)
             )
+            try:
+                self._write_run_json()
+            except OSError as e:
+                self.log(f"run.json save failed: {e}")
 
     def snapshot(self):
         with self.lock:
@@ -605,11 +725,16 @@ class Runner:
                 "results": [{k: v for k, v in r.items() if k != "frame"} for r in self.results],
                 "timeline": list(self.timeline),
                 "current": dict(self.current),
+                "plan": list(self.plan_state),
+                "memory": self.memory,
+                "last_check": self.last_check,
                 "planner": config.PLANNER,
                 "planner_model": config.OPENAI_PLANNER_MODEL if config.PLANNER == "openai" else config.MODEL,
                 "perception": config.PERCEPTION,
                 "tokens": {"input": self.tokens_in, "output": self.tokens_out},
                 "openai_tokens": self.openai_tokens,
+                "run_id": self.run_id,
+                "run_dir": self._run_dir() if self.run_id else "",
                 "started_at": self.started_at,
                 "finished_at": self.finished_at,
             }
@@ -632,6 +757,8 @@ class Runner:
                 else None,
                 "tokens": {"input": self.tokens_in, "output": self.tokens_out},
                 "openai_tokens": self.openai_tokens,
+                "run_id": self.run_id,
+                "run_dir": self._run_dir() if self.run_id else "",
                 "tasks": list(self.results),
                 "error": self.error,
             }

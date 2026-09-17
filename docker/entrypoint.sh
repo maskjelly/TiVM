@@ -7,6 +7,12 @@ H="${SCREEN_H:-800}"
 AUTHFILE=/tmp/xvfb.auth
 
 rm -f "/tmp/.X${DISPLAY#:}-lock" "/tmp/.X11-unix/X${DISPLAY#:}"
+
+# fresh sandbox on every start: no leftovers from earlier runs or earlier customers
+rm -rf /root/projects/* /root/Documents/* /root/Downloads/* 2>/dev/null || true
+rm -rf /root/.cache /root/.npm /root/.bun /root/.mozilla 2>/dev/null || true
+rm -f /root/.bash_history /tmp/tivm_*.png /tmp/ff-warm*.png 2>/dev/null || true
+
 touch "$AUTHFILE"
 export XAUTHORITY="$AUTHFILE"
 

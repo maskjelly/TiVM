@@ -47,6 +47,63 @@ visible; its one-time privacy notice is dismissed by the agent on first launch),
 `curl`/`wget`/`git`/`jq`/`unzip`/`sudo`, XFCE desktop, tesseract, xdotool, at-spi. `make check`
 prints every version.
 
+## How it works
+
+```
+make up ──► colima VM + Docker ──► tivm-desktop container ──► XFCE desktop (noVNC :6080)
+                                               │
+                                               └─ uvicorn control panel (:6081)
+```
+
+**Nothing runs on its own.** The container boots a desktop and an idle control panel. A task runs
+only when triggered:
+
+| trigger | what happens |
+| ------- | ------------ |
+| panel → **Run tests** | `POST /api/run {tasks: [...]}` on :6081, one task per line |
+| `curl -X POST localhost:6081/api/run -d '{"tasks":["..."]}'` | same, scriptable/CI |
+| `POST /api/stop` | stops after the current action |
+
+Each task: perceive (a11y) → one OpenAI planner call (screenshot + plan/memory/check) → act
+(invoke or xdotool) → settle. The planner keeps a running `plan` and `memory` across steps so it
+stays on task. Verdict per task: `PASS`/`FAIL` with a reason, at `/api/result` and in the panel.
+
+Artifacts are exported to the host as the run goes:
+
+```
+runs/<timestamp>/run.json            suite summary
+runs/<timestamp>/task-N.json         verdict, steps, tokens, duration
+runs/<timestamp>/task-N-final.jpg    annotated final screen
+runs/<timestamp>/timeline.json       every step (action, reason, timings, tokens)
+```
+
+`make runs` lists them, `make wipe-runs` deletes them, `TIVM_KEEP_RUNS` (default 20) auto-prunes.
+
+Changes are committed and pushed to `origin/main` (`git push`), never from inside the container —
+the only host-mounted paths are `./agent` (read-only code) and `./runs` (artifacts out).
+
+## What persists (and what is wiped)
+
+The sandbox is ephemeral by design: every `make up` starts a fresh machine.
+
+| thing | where | survives teardown? |
+| ----- | ----- | ------------------ |
+| run artifacts (`run.json`, per-task verdicts, final screenshots, timeline) | `./runs/<timestamp>/` on the host, mounted into the container | **yes** |
+| cloned repos, `bun install`/`npm install`, apt packages, caches, browser profile | container filesystem | no — wiped at every container start by the entrypoint, and thrown away when the container is recreated |
+| the image (git, node, bun, python, firefox, tesseract) | VM disk (`~/.colima/_lima`) | yes, until `colima delete` or an image prune |
+
+Commands:
+
+```sh
+make up        # always starts fresh: down + prune dangling layers + recreate
+make runs      # list exported run folders
+make wipe-runs # delete all artifacts
+make clean     # down + remove dangling images and build cache (frees GBs)
+```
+
+`TIVM_KEEP_RUNS` (default 20) caps how many run folders are kept; older ones are
+deleted when a new run starts.
+
 ## Run it
 
 Requires a container runtime (Docker CLI + a VM, e.g. Colima on macOS):

@@ -18,7 +18,7 @@ PERCEPTION = os.environ.get("TIVM_PERCEPTION", "hybrid")
 SCREEN_W = int(os.environ.get("SCREEN_W", "1280"))
 SCREEN_H = int(os.environ.get("SCREEN_H", "800"))
 
-MAX_STEPS = int(os.environ.get("TIVM_MAX_STEPS", "20"))
+MAX_STEPS = int(os.environ.get("TIVM_MAX_STEPS", "100"))
 MAX_ELEMENTS = 150
 OCR_SCALE = int(os.environ.get("TIVM_OCR_SCALE", "2"))
 GRID_COLS = 4
@@ -34,8 +34,13 @@ STEP_SLEEP = float(os.environ.get("TIVM_STEP_SLEEP", "1.0"))
 SETTLE_TIMEOUT = float(os.environ.get("TIVM_SETTLE_TIMEOUT", "1.5"))
 SETTLE_POLL = float(os.environ.get("TIVM_SETTLE_POLL", "0.08"))
 SETTLE_MIN = float(os.environ.get("TIVM_SETTLE_MIN", "0.35"))
+COMMAND_SETTLE_TIMEOUT = float(os.environ.get("TIVM_COMMAND_SETTLE_TIMEOUT", "10"))
+MAX_CONSECUTIVE_WAITS = int(os.environ.get("TIVM_MAX_WAITS", "20"))
+WAIT_SECONDS = float(os.environ.get("TIVM_WAIT_SECONDS", "5"))
 A11Y_SKIP_OCR_MIN = int(os.environ.get("TIVM_A11Y_SKIP_OCR_MIN", "10"))
 CHANGE_RATIO = float(os.environ.get("TIVM_CHANGE_RATIO", "0.004"))
+RUNS_DIR = os.environ.get("TIVM_RUNS_DIR", "/app/runs")
+KEEP_RUNS = int(os.environ.get("TIVM_KEEP_RUNS", "20"))
 TYPE_PRESSES_RETURN = os.environ.get("TIVM_TYPE_RETURN", "1") not in ("0", "false", "False")
 
 H_NAMES = ["left", "center-left", "center-right", "right"]

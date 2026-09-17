@@ -45,23 +45,34 @@ def image_data_url(path, max_w=1024, quality=80):
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-PLANNER_SYSTEM = """You control a Linux desktop through a small action vocabulary.
-You get a screenshot, the task, the detected on-screen elements (id, role, text, position), open
-windows, terminal output and recent actions.
+PLANNER_SYSTEM = """You are the orchestrator of a Linux desktop agent. You get a screenshot, the
+task, the detected on-screen elements (id, role, text, position), open windows, terminal output,
+recent actions, and your own plan, memory and last self-check.
 Reply with JSON only:
-{"done": bool, "blocked": bool, "action": "click"|"double_click"|"type"|"key"|"scroll_up"|"scroll_down",
+{"done": bool, "blocked": bool, "action": "click"|"double_click"|"type"|"key"|"wait"|"scroll_up"|"scroll_down",
  "target": "<element id, or empty>", "x": int, "y": int, "text": "<exact text to type>",
- "key": "<key name>", "reason": "<short>"}
+ "key": "<key name>", "reason": "<short>",
+ "plan": ["<remaining substep>", "..."], "memory": "<short facts to remember>",
+ "check": "<what must be true after this action>"}
 
 Rules:
 - One action per reply. Use exactly one of the action values.
+- Keep "plan" updated every reply: the remaining substeps of the task, in order, with completed
+  ones removed. Never lose sight of the overall task; the plan is your memory of it.
+- Use "memory" for short facts you must not forget: repo paths, dev server URL and port,
+  which command is still running, versions, errors seen. It is carried to every future step.
+- "check" states what should be true right after your action. On the next step you are shown
+  your previous check, so verify it against the screen before moving on; if it did not hold,
+  fix it first instead of continuing the plan.
 - For clicks, "target" must be an element id from the list (never empty), or supply "x"/"y" pixels.
   Prefer a listed element id; use x/y only when no element fits.
-- For action "type", put the complete exact text to type in "text" (a full shell command if needed).
-  The text is typed into whatever has keyboard focus. Focus is shown as "has keyboard focus" in the element list.
-- For action "key", valid keys: Return, Tab, Escape, space, BackSpace, ctrl+l, ctrl+t, ctrl+w, ctrl+a,
-  ctrl+s, ctrl+f, alt+F4, super, Up, Down, Left, Right, Page_Down, Page_Up.
-- If the screen shows a dialog blocking progress (like a browser notice), dismiss it first.
+- For "type", put the complete exact text in "text" (a full shell command if needed). It goes to
+  whatever has keyboard focus; focus is marked "has keyboard focus" in the element list. If the
+  window you need is already focused, just type - do not click first.
+- For "key", "key" must name the key: Return, Tab, Escape, space, BackSpace, ctrl+l, ctrl+t,
+  ctrl+w, ctrl+a, ctrl+s, ctrl+f, alt+F4, super, Up, Down, Left, Right, Page_Down, Page_Up.
+- Use "wait" when a command you started is still running (installs, builds, servers). Waiting
+  repeatedly is fine while output advances; keep checking terminal output for completion or errors.
 - Set done=true only when the task's goal is visibly achieved on screen.
 - Set blocked=true only when an unrecoverable error or a login/password prompt blocks the task,
   or when the task asks for something that does not exist (a folder or app that is not on screen
@@ -69,7 +80,8 @@ Rules:
 - Never repeat an action that produced no change; choose a different target or approach."""
 
 
-def plan(task, elements, windows, focused_window, terminal_output, history, screenshot_path):
+def plan(task, elements, windows, focused_window, terminal_output, history, screenshot_path,
+         plan_state=None, memory="", last_check=""):
     element_lines = []
     for e in elements[: config.OPENAI_MAX_ELEMENTS]:
         focus = " (focused)" if e.get("focused") else ""
@@ -79,6 +91,9 @@ def plan(task, elements, windows, focused_window, terminal_output, history, scre
         )
     state = {
         "task": task,
+        "your_plan": plan_state or [],
+        "memory": memory,
+        "your_last_check": last_check,
         "focused_window": focused_window,
         "open_windows": windows,
         "elements": element_lines,
