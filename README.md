@@ -15,9 +15,10 @@ screenshots are exported before teardown.
 *Control panel: live screen with the chosen target boxed, the orchestrator's plan/memory strip,
 per-step timeline (action, reason, self-check, timings, tokens) and per-task verdicts.*
 
-![Run history](docs/runs.png)
-*Run history: every completed suite is exported to `runs/<id>/` and can be reopened here with its
-timeline, verdicts, token usage and artifacts.*
+![Run history, dark theme](docs/runs-dark.png)
+*Run history (dark theme): every completed suite is exported to `runs/<id>/` and can be reopened
+here with its timeline, verdicts, token usage and artifacts. The theme follows your OS, with a
+toggle and `?theme=dark` / `?theme=light` overrides.*
 
 ## Quick start
 
