@@ -2,6 +2,26 @@ import time
 
 import pyatspi
 
+from . import config
+
+INTERACTIVE_ROLES = {
+    "push button",
+    "toggle button",
+    "menu",
+    "menu item",
+    "check box",
+    "radio button",
+    "page tab",
+    "list item",
+    "combo box",
+    "entry",
+    "link",
+    "icon",
+    "table cell",
+    "tree item",
+    "spin button",
+}
+
 ROLES = {
     "push button",
     "toggle button",
@@ -46,6 +66,10 @@ def _extents(node):
     except Exception:
         return None
     if ext.width < 2 or ext.height < 2:
+        return None
+    if ext.x + ext.width < 0 or ext.y + ext.height < 0:
+        return None
+    if ext.x > config.SCREEN_W or ext.y > config.SCREEN_H:
         return None
     return ext.x, ext.y, ext.width, ext.height
 

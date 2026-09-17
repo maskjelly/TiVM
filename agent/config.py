@@ -4,6 +4,17 @@ MODEL = os.environ.get("TYPESAFE_MODEL", "jev-latest")
 API_URL = os.environ.get("TYPESAFE_API_URL", "https://api.typesafe.ai/v1/systemone")
 API_KEY = os.environ.get("TYPESAFE_API_KEY", "")
 
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_URL = os.environ.get("OPENAI_URL", "https://api.openai.com/v1/chat/completions")
+OPENAI_PLANNER_MODEL = os.environ.get("TIVM_OPENAI_PLANNER_MODEL", "gpt-5.6-sol")
+OPENAI_VISION_MODEL = os.environ.get("TIVM_OPENAI_VISION_MODEL", "gpt-5.6-sol")
+OPENAI_IMAGE_DETAIL = os.environ.get("TIVM_OPENAI_IMAGE_DETAIL", "high")
+OPENAI_REASONING_EFFORT = os.environ.get("TIVM_OPENAI_REASONING_EFFORT", "none")
+OPENAI_MAX_ELEMENTS = int(os.environ.get("TIVM_OPENAI_MAX_ELEMENTS", "80"))
+STALL_LIMIT = int(os.environ.get("TIVM_STALL_LIMIT", "4"))
+PLANNER = os.environ.get("TIVM_PLANNER", "openai")
+PERCEPTION = os.environ.get("TIVM_PERCEPTION", "hybrid")
+
 SCREEN_W = int(os.environ.get("SCREEN_W", "1280"))
 SCREEN_H = int(os.environ.get("SCREEN_H", "800"))
 

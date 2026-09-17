@@ -19,17 +19,25 @@ navigate menus it has never seen. A 160x100 pixel-diff thumb drives change detec
 ## One step
 
 ```
-perceive (a11y + optional OCR) → one TypeSafe request → act → settle
+perceive (a11y + optional OCR) → one planner call → act → settle
 ```
 
-Questions per step (all in one request): `done` (noul), `action` (choice), `target` (choice over
-detected widgets). Follow-up questions (`key`, `grid`) are only sent when the action needs them.
+### Planners (`TIVM_PLANNER`)
+
+| mode | model | sees pixels | generates text | measured per step |
+| ---- | ----- | ----------- | -------------- | ----------------- |
+| `openai` (default) | `TIVM_OPENAI_PLANNER_MODEL`, default `gpt-5.6-sol` with `reasoning=none` | yes — screenshot in the same call | yes (any shell command, search query, message) | ~2.0–2.7s, ~2.6k tokens |
+| `jev` | TypeSafe `jev-latest` | no — text state only | no (types only text found in the task) | ~0.9s decide, ~1.5k in / 0.25k out |
+
+In `openai` mode the a11y tree is the only perception source (the planner reads the screenshot
+itself), so tesseract is skipped entirely — that is the atomic single-call path.
+Perception modes: `TIVM_PERCEPTION=vision` adds OpenAI OCR text items (`gpt-5.6-sol`),
+`a11y` uses none, `hybrid` keeps tesseract as the Jev-mode fallback.
 
 Measured on the demo task (open the text editor, type `"hello from Jev"`):
 
-- step: **~1.4–1.7s** — Jev ~0.85–1.0s, perceive 0.06–0.35s, act 0–0.2s, settle 0.2–0.4s
-- tokens: ~1.3–1.8k in / ~0.2–0.4k out per step
-- task: 6 steps, 10.3s wall, 10.4k in / 1.7k out total
+- OpenAI planner: 5 steps, 18.4s wall, ~2.6k tokens/step (free text typed by the model)
+- Jev planner: 6 steps, 10.3s wall, ~1.5k in / 0.25k out per step
 
 ## What's in the sandbox
 

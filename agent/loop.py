@@ -2,7 +2,7 @@ import re
 import threading
 import time
 
-from . import a11y, actions, config, ts, vision
+from . import a11y, actions, config, openai_client, ts, vision
 
 
 def _norm(text):
@@ -92,6 +92,7 @@ class Runner:
         self._nodes = {}
         self.ocr_skipped = False
         self._fallback_click = None
+        self.openai_tokens = 0
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
@@ -128,6 +129,7 @@ class Runner:
         self._fallback_click = None
 
         if action in ("click", "double_click"):
+            point = None
             if element:
                 node = self._nodes.get(target)
                 if (
@@ -143,14 +145,17 @@ class Runner:
                     )
                     return f'invoked {element.get("role", "widget")} "{element["text"]}"'
                 point = (element["x"] + element["w"] // 2, element["y"] + element["h"] // 2)
-            elif target == "no_text_target":
-                cell = (answers.get("grid") or {}).get("choice") or "A1"
-                point = grid_point(cell)
-                self.log(f"no text target, using grid cell {cell}")
-            else:
-                self.log(f"click requested but target {target!r} is not usable, waiting instead")
-                actions.wait()
-                return "wait (no usable click target)"
+            elif answers.get("point"):
+                point = tuple(answers["point"])
+            if point is None:
+                if target == "no_text_target" or config.PLANNER == "openai":
+                    cell = (answers.get("grid") or {}).get("choice") or "A1"
+                    point = grid_point(cell)
+                    self.log(f"no usable element target, using grid cell {cell}")
+                else:
+                    self.log(f"click requested but target {target!r} is not usable, waiting instead")
+                    actions.wait()
+                    return "wait (no usable click target)"
             if action == "click":
                 actions.click(*point)
             else:
@@ -158,7 +163,8 @@ class Runner:
             return f"{action} at {point[0]},{point[1]}"
 
         if action == "type":
-            candidates = type_candidates(task)
+            forced = str(answers.get("text") or "").strip()
+            candidates = [forced] if forced else type_candidates(task)
             remaining = [c for c in candidates if c not in self.typed]
             if not candidates:
                 self.log('nothing to type: put the text in quotes in the task, e.g. type "hello"')
@@ -193,18 +199,54 @@ class Runner:
         actions.wait()
         return "waited"
 
+    def _vision_elements(self):
+        try:
+            texts, usage = openai_client.vision_ocr(vision.RAW_PATH, config.SCREEN_W, config.SCREEN_H)
+        except Exception as e:
+            self.log(f"openai vision failed ({e}), falling back to tesseract")
+            return vision.ocr_elements()
+        self.openai_tokens += usage.get("total_tokens", 0)
+        out = []
+        for item in texts[: config.MAX_ELEMENTS]:
+            text = (item.get("text") or "").strip()
+            try:
+                x, y, w, h = (int(item.get(k, 0)) for k in ("x", "y", "w", "h"))
+            except (TypeError, ValueError):
+                continue
+            if text and w >= 2 and h >= 2:
+                out.append(
+                    {
+                        "source": "vision",
+                        "text": text[:80],
+                        "x": max(0, x),
+                        "y": max(0, y),
+                        "w": w,
+                        "h": h,
+                    }
+                )
+        self.log(f"openai vision: {len(out)} text items")
+        return out
+
     def _perceive(self):
         a11y_elements = a11y.elements()
-        merged = list(a11y_elements)
-        if len(a11y_elements) >= config.A11Y_SKIP_OCR_MIN:
-            self.ocr_skipped = True
-        else:
+        extras = []
+        self.ocr_skipped = True
+        if config.PERCEPTION == "vision":
+            extras = self._vision_elements()
             self.ocr_skipped = False
-            for ocr_el in vision.ocr_elements():
-                if not any(_same_target(ocr_el, a) for a in a11y_elements):
-                    merged.append(ocr_el)
+        elif config.PERCEPTION != "a11y" and config.PLANNER != "openai":
+            if len(a11y_elements) < config.A11Y_SKIP_OCR_MIN:
+                extras = vision.ocr_elements()
+                self.ocr_skipped = False
+        merged = list(a11y_elements)
+        for element in extras:
+            if not any(_same_target(element, existing) for existing in merged):
+                merged.append(element)
         merged.sort(key=lambda e: (e["y"] // 12, e["x"]))
-        merged = merged[: config.MAX_ELEMENTS]
+        if len(merged) > config.MAX_ELEMENTS:
+            interactive = [e for e in merged if e.get("role") in a11y.INTERACTIVE_ROLES]
+            others = [e for e in merged if e.get("role") not in a11y.INTERACTIVE_ROLES]
+            merged = (interactive + others)[: config.MAX_ELEMENTS]
         self._nodes = {}
         for i, element in enumerate(merged, start=1):
             element["id"] = f"e{i}"
@@ -252,6 +294,7 @@ class Runner:
         low_conf = 0
         self.typed = []
         self.no_text_note = False
+        self.stall = 0
         note = "This is the first step."
 
         for step in range(1, self.max_steps + 1):
@@ -280,36 +323,68 @@ class Runner:
             state = build_state(task, elements, history, note, step, self.max_steps)
             remaining_text = [c for c in type_candidates(task) if c not in self.typed]
             started = time.perf_counter()
-            result = ts.ask(
-                state, config.build_questions(task, elements, can_type=bool(remaining_text))
-            )
+            step_openai = 0
+            if config.PLANNER == "openai":
+                plan, usage = openai_client.plan(
+                    task,
+                    elements,
+                    [w["title"] for w in vision.windows()],
+                    vision.active_window(),
+                    state.get("terminal_output"),
+                    history,
+                    vision.RAW_PATH,
+                )
+                step_openai = usage.get("total_tokens", 0)
+                self.openai_tokens += step_openai
+                action = str(plan.get("action") or "wait").strip()
+                target = str(plan.get("target") or "").strip()
+                answers = {
+                    "action": {"choice": action, "confidence": 1.0},
+                    "target": {"choice": target or "no_text_target"},
+                    "text": str(plan.get("text") or "").strip(),
+                    "key": {"choice": plan.get("key") or "Return"},
+                }
+                try:
+                    if plan.get("x") is not None and plan.get("y") is not None:
+                        answers["point"] = (int(plan["x"]), int(plan["y"]))
+                except (TypeError, ValueError):
+                    pass
+                done = 1.0 if plan.get("done") else 0.0
+                blocked = 1.0 if plan.get("blocked") else 0.0
+                confidence = 1.0
+                step_in = step_out = 0
+                self.log(f"plan: {str(plan.get('reason', ''))[:120]}")
+            else:
+                result = ts.ask(
+                    state, config.build_questions(task, elements, can_type=bool(remaining_text))
+                )
+                answers = result["answers"]
+                usage = result.get("usage", {})
+                step_in = usage.get("input_tokens", 0)
+                step_out = usage.get("output_tokens", 0)
+
+                done = answers["done"]["noul"]
+                blocked = answers["blocked"]["noul"]
+                action = answers["action"]["choice"]
+                target = answers["target"]["choice"]
+                confidence = answers["action"].get("confidence", 0)
+
+                if action == "key":
+                    extra = ts.ask(state, {"key": config.build_key_question()})
+                    answers["key"] = extra["answers"]["key"]
+                    usage = extra.get("usage", {})
+                    step_in += usage.get("input_tokens", 0)
+                    step_out += usage.get("output_tokens", 0)
+                    self.log(f"follow-up key -> {answers['key']['choice']}")
+                elif action in ("click", "double_click") and target == "no_text_target":
+                    extra = ts.ask(state, {"grid": config.build_grid_question()})
+                    answers["grid"] = extra["answers"]["grid"]
+                    usage = extra.get("usage", {})
+                    step_in += usage.get("input_tokens", 0)
+                    step_out += usage.get("output_tokens", 0)
+                    self.log(f"follow-up grid -> {answers['grid']['choice']}")
+
             decide_ms = (time.perf_counter() - started) * 1000
-            answers = result["answers"]
-            usage = result.get("usage", {})
-            step_in = usage.get("input_tokens", 0)
-            step_out = usage.get("output_tokens", 0)
-
-            done = answers["done"]["noul"]
-            blocked = answers["blocked"]["noul"]
-            action = answers["action"]["choice"]
-            target = answers["target"]["choice"]
-            confidence = answers["action"].get("confidence", 0)
-
-            if action == "key":
-                extra = ts.ask(state, {"key": config.build_key_question()})
-                answers["key"] = extra["answers"]["key"]
-                usage = extra.get("usage", {})
-                step_in += usage.get("input_tokens", 0)
-                step_out += usage.get("output_tokens", 0)
-                self.log(f"follow-up key -> {answers['key']['choice']}")
-            elif action in ("click", "double_click") and target == "no_text_target":
-                extra = ts.ask(state, {"grid": config.build_grid_question()})
-                answers["grid"] = extra["answers"]["grid"]
-                usage = extra.get("usage", {})
-                step_in += usage.get("input_tokens", 0)
-                step_out += usage.get("output_tokens", 0)
-                self.log(f"follow-up grid -> {answers['grid']['choice']}")
-
             self.tokens_in += step_in
             self.tokens_out += step_out
             self.log(f"done={done:.2f} blocked={blocked:.2f} action={action}({confidence:.2f}) target={target}")
@@ -375,8 +450,22 @@ class Runner:
                 f"timing: perceive {perceive_ms:.0f} + decide {decide_ms:.0f} "
                 f"+ act {act_ms:.0f} + settle {settle_ms:.0f} ms | tokens "
                 f"{step_in} in / {step_out} out"
+                + (f" | openai {step_openai}" if step_openai else "")
             )
             self.no_text_note = False
+
+            if screen_changed_after_action:
+                self.stall = 0
+            else:
+                self.stall += 1
+                if self.stall >= config.STALL_LIMIT:
+                    self.log(f"no progress: {self.stall} actions produced no screen change")
+                    return {
+                        "task": task,
+                        "passed": False,
+                        "steps": step,
+                        "reason": f"no progress: {self.stall} actions produced no screen change",
+                    }
 
             if self.no_text_note:
                 note = (
@@ -408,6 +497,7 @@ class Runner:
                 self.task = task
                 self.log(f"--- task {index}/{len(self.tasks)}: {task}")
                 tokens_before = (self.tokens_in, self.tokens_out)
+                openai_before = self.openai_tokens
 
                 try:
                     result = self._run_task(task)
@@ -420,6 +510,7 @@ class Runner:
                     "input": self.tokens_in - tokens_before[0],
                     "output": self.tokens_out - tokens_before[1],
                 }
+                result["openai_tokens"] = self.openai_tokens - openai_before
                 result["frame"] = vision.frame_data_url(element=self.last_element, label=self.last_label)
                 self.results.append(result)
                 self.log(f"task {index} {'PASS' if result['passed'] else 'FAIL'}: {result['reason']}")
@@ -449,6 +540,7 @@ class Runner:
                 "last_label": self.last_label,
                 "results": [{k: v for k, v in r.items() if k != "frame"} for r in self.results],
                 "tokens": {"input": self.tokens_in, "output": self.tokens_out},
+                "openai_tokens": self.openai_tokens,
                 "started_at": self.started_at,
                 "finished_at": self.finished_at,
             }
@@ -470,6 +562,7 @@ class Runner:
                 if self.started_at
                 else None,
                 "tokens": {"input": self.tokens_in, "output": self.tokens_out},
+                "openai_tokens": self.openai_tokens,
                 "tasks": list(self.results),
                 "error": self.error,
             }
