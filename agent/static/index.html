@@ -3,191 +3,278 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TiVM — agent control panel</title>
+<title>TiVM — sandbox</title>
+<script>
+  (function () {
+    var p = new URLSearchParams(location.search).get('theme');
+    var t = p || localStorage.getItem('tivm_theme');
+    if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+  })();
+</script>
 <style>
   :root {
-    color-scheme: dark;
-    --bg: #0d1117;
-    --panel: #161b22;
-    --panel-2: #1c2230;
-    --border: #262d3a;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --accent: #4ade80;
-    --accent-dim: #17351f;
-    --blue: #79c0ff;
-    --red: #ff8f9b;
-    --red-dim: #3a1720;
-    --amber: #e3b341;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f2f4f7;
+    --border: #e5e7eb;
+    --border-strong: #d5d9e0;
+    --text: #111827;
+    --dim: #6b7280;
+    --faint: #9ca3af;
+    --accent: #4f46e5;
+    --accent-soft: #eef2ff;
+    --ok: #047857;
+    --ok-soft: #ecfdf5;
+    --warn: #b45309;
+    --warn-soft: #fffbeb;
+    --err: #b91c1c;
+    --err-soft: #fef2f2;
+    --screen: #0b0d12;
+    --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  }
+  html[data-theme="dark"] {
+    --bg: #0f1115;
+    --surface: #161a20;
+    --surface-2: #1b2027;
+    --border: #242a33;
+    --border-strong: #2f3742;
+    --text: #e8eaed;
+    --dim: #9aa3ad;
+    --faint: #6b7480;
+    --accent: #8b93ff;
+    --accent-soft: #1e2140;
+    --ok: #34d399;
+    --ok-soft: #10251d;
+    --warn: #fbbf24;
+    --warn-soft: #2a2110;
+    --err: #f87171;
+    --err-soft: #2a1517;
+    --screen: #08090c;
+    --shadow: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115;
+      --surface: #161a20;
+      --surface-2: #1b2027;
+      --border: #242a33;
+      --border-strong: #2f3742;
+      --text: #e8eaed;
+      --dim: #9aa3ad;
+      --faint: #6b7480;
+      --accent: #8b93ff;
+      --accent-soft: #1e2140;
+      --ok: #34d399;
+      --ok-soft: #10251d;
+      --warn: #fbbf24;
+      --warn-soft: #2a2110;
+      --err: #f87171;
+      --err-soft: #2a1517;
+      --screen: #08090c;
+      --shadow: none;
+    }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
   body {
     margin: 0;
-    font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--bg); color: var(--text);
-    display: grid; grid-template-rows: auto 1fr;
+    font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    -webkit-font-smoothing: antialiased;
   }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
-  a { color: var(--blue); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-
-  header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 14px;
-           border-bottom: 1px solid var(--border); background: var(--panel); }
-  .brand { font-weight: 650; letter-spacing: 0.14em; font-size: 12.5px; }
-  .brand span { color: var(--accent); }
-  .status { display: inline-flex; align-items: center; gap: 7px; padding: 3px 11px; border-radius: 999px;
-            background: var(--panel-2); border: 1px solid var(--border); font-size: 12px; font-weight: 550; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .status.running { border-color: #1f5f3f; color: var(--accent); }
-  .status.running .dot { background: var(--accent); animation: pulse 1.1s infinite; }
-  .status.passed { border-color: #1f5f3f; color: var(--accent); }
-  .status.passed .dot { background: var(--accent); }
-  .status.failed { border-color: #5f1f2a; color: var(--red); }
-  .status.failed .dot { background: var(--red); }
-  @keyframes pulse { 50% { opacity: 0.25; } }
-  .chip { padding: 3px 9px; border-radius: 8px; font-size: 11.5px; background: var(--panel-2);
-          border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
-  .chip b { color: var(--text); font-weight: 560; }
-  .chip.link { cursor: pointer; }
+  .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; font-size: 12px; }
+  a { color: inherit; text-decoration: none; }
   .spacer { flex: 1; }
+  .dim { color: var(--dim); }
+  .faint { color: var(--faint); }
+  .grow { flex: 1; min-height: 0; }
 
-  main { min-height: 0; display: grid; gap: 12px; padding: 12px 14px 14px;
-         grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.05fr); }
-  .col { min-height: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  section.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-                  overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
-  .panel h2 { margin: 0; padding: 8px 13px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-              color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border);
-              background: var(--panel-2); display: flex; gap: 10px; align-items: center; }
-  .panel h2 .right { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  /* ---------- top bar ---------- */
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { font-size: 14px; font-weight: 640; letter-spacing: -0.01em; display: flex; align-items: baseline; gap: 7px; }
+  .brand .ver { font-size: 11px; font-weight: 500; color: var(--faint); }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 550; color: var(--dim); }
+  .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .status.running { color: var(--accent); }
+  .status.running i { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+  .status.passed { color: var(--ok); }
+  .status.passed i { background: var(--ok); }
+  .status.failed { color: var(--err); }
+  .status.failed i { background: var(--err); }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+  .metrics { font-size: 12px; color: var(--dim); display: flex; gap: 14px; }
+  .metrics b { font-weight: 560; color: var(--text); }
+  .ghost {
+    font: inherit; font-size: 12px; font-weight: 520; color: var(--dim);
+    background: transparent; border: 1px solid transparent; border-radius: 8px;
+    padding: 5px 10px; cursor: pointer;
+  }
+  .ghost:hover { background: var(--surface-2); color: var(--text); }
 
-  .tabs { display: flex; gap: 4px; margin-left: auto; }
-  .tabs button { padding: 2px 10px; border-radius: 7px; font-size: 11px; font-weight: 600;
-                 background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; }
-  .tabs button.active { background: var(--panel); border-color: var(--border); color: var(--text); }
+  /* ---------- layout ---------- */
+  main { min-height: 0; display: grid; grid-template-columns: minmax(380px, 1fr) minmax(440px, 1.02fr);
+         gap: 14px; padding: 14px 18px 16px; }
+  .stack { min-height: 0; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  }
+  .card-h { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+  .card-h h1, .card-h h2 { margin: 0; font-size: 12.5px; font-weight: 620; letter-spacing: -0.005em; }
+  .card-h .meta { font-size: 11.5px; color: var(--dim); }
+  .pill { font-size: 11px; font-weight: 520; color: var(--dim); background: var(--surface-2);
+          border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; }
+  .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+  .seg button { font: inherit; font-size: 11.5px; font-weight: 540; color: var(--dim); background: transparent;
+                border: 0; border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .seg button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
-  .screenwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #05070a; }
+  /* ---------- screen ---------- */
+  .screenwrap { flex: 1; min-height: 0; background: var(--screen); display: flex; align-items: center; justify-content: center; }
   .screenwrap img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-  .nowbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 8px 13px;
-            border-top: 1px solid var(--border); background: var(--panel-2); }
-  .nowbar .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .nowbar .value { font-weight: 620; font-size: 12.5px; }
-  .nowbar .why { color: var(--muted); font-size: 12px; flex: 1 1 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .progress { height: 3px; background: var(--panel-2); flex: 0 0 auto; }
-  .progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+  .progress { height: 2px; background: var(--surface-2); }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s ease; }
+  .nowbar { display: flex; align-items: baseline; gap: 9px; padding: 10px 14px; border-top: 1px solid var(--border);
+            white-space: nowrap; overflow: hidden; }
+  .nowbar .label { font-size: 10.5px; font-weight: 620; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+  .nowbar b { font-weight: 580; }
+  .nowbar .why { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
 
-  .controls { display: flex; flex-direction: column; gap: 8px; padding: 10px 13px; border-top: 1px solid var(--border); }
-  textarea { width: 100%; height: 46px; resize: none; background: #0b0f14; color: var(--text);
-             border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; font: inherit; }
-  textarea:focus { outline: none; border-color: #2f6f4f; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  button { font: inherit; font-weight: 560; cursor: pointer; border-radius: 9px; padding: 8px 15px;
-           background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
-  button:hover { border-color: #3b465a; }
-  button.primary { background: var(--accent-dim); border-color: #1f7a4a; color: var(--accent); }
-  button.danger { background: var(--red-dim); border-color: #6b2330; color: var(--red); }
-  button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
-  .presets button { font-size: 11.5px; padding: 4px 9px; color: var(--muted); font-weight: 480; }
-  .hint { color: var(--muted); font-size: 11.5px; }
+  /* ---------- run form ---------- */
+  .runform { padding: 12px 14px 13px; display: flex; flex-direction: column; gap: 9px; }
+  textarea {
+    width: 100%; height: 44px; resize: none; font: inherit; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+  textarea::placeholder { color: var(--faint); }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .row .hint { font-size: 11.5px; color: var(--faint); }
+  button.primary, button.danger, button.plain {
+    font: inherit; font-size: 12.5px; font-weight: 560; border-radius: 8px; padding: 7px 14px; cursor: pointer;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.05); }
+  button.danger { color: var(--err); border-color: var(--border-strong); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .presets button {
+    font: inherit; font-size: 11.5px; color: var(--dim); background: transparent;
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; cursor: pointer;
+  }
+  .presets button:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-2); }
 
-  .vrow { display: flex; gap: 9px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
-  .vrow:last-child { border-bottom: 0; }
-  .vrow .task { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .vrow .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
-  .badge { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; letter-spacing: 0.03em; }
-  .badge.pass { background: var(--accent-dim); color: var(--accent); border: 1px solid #1f7a4a; }
-  .badge.fail { background: var(--red-dim); color: var(--red); border: 1px solid #6b2330; }
-  .badge.run { background: #1a2740; color: var(--blue); border: 1px solid #2b4a75; }
-  .more { padding: 5px 12px; color: var(--muted); font-size: 11.5px; }
+  /* ---------- lists ---------- */
+  .list { max-height: 172px; overflow: auto; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--border); }
+  .item:first-child { border-top: 0; }
+  .item .text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .meta { font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+  .badge { font-size: 11px; font-weight: 620; letter-spacing: 0.02em; border-radius: 6px; padding: 2px 7px; }
+  .badge.pass { color: var(--ok); background: var(--ok-soft); }
+  .badge.fail { color: var(--err); background: var(--err-soft); }
+  .badge.open { color: var(--accent); background: var(--accent-soft); }
+  .empty { padding: 16px 14px; color: var(--faint); font-size: 12px; }
 
-  .planstrip { padding: 6px 13px; border-bottom: 1px solid var(--border); background: var(--panel-2);
-               color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .planstrip b { color: var(--text); font-weight: 560; }
+  /* ---------- activity ---------- */
+  .strip { padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+           font-size: 11.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strip b { color: var(--text); font-weight: 560; }
+  #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+  .ev { padding: 8px 14px; border-top: 1px solid var(--border); }
+  .ev:first-child { border-top: 0; }
+  .ev .line1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .ev .idx { font-size: 11px; color: var(--faint); min-width: 18px; font-variant-numeric: tabular-nums; }
+  .ev .act { font-size: 12px; font-weight: 580; }
+  .ev .act.click, .ev .act.double_click { color: var(--accent); }
+  .ev .act.type { color: var(--ok); }
+  .ev .act.key { color: #7c3aed; }
+  .ev .act.done { color: var(--ok); }
+  .ev .act.blocked, .ev .act.error { color: var(--err); }
+  .ev .target { font-size: 12px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .flag { margin-left: auto; font-size: 11px; color: var(--faint); white-space: nowrap; }
+  .ev .sub { font-size: 11.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .ev .facts { font-size: 11px; color: var(--faint); margin-top: 2px; display: flex; gap: 12px; font-variant-numeric: tabular-nums; }
+  .ev.task { background: var(--surface-2); }
+  .ev.task .task-name { font-size: 12px; font-weight: 560; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px;
-          padding: 10px 12px; justify-content: flex-end; }
-  .card { border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; background: var(--panel-2); flex: 0 0 auto; }
-  .card .head { display: flex; gap: 7px; align-items: center; min-width: 0; }
-  .card .n { color: var(--muted); font-size: 11.5px; min-width: 24px; }
-  .card .act { font-weight: 650; font-size: 12px; letter-spacing: 0.03em; }
-  .card .tgt { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  .card .flag { margin-left: auto; font-size: 11px; white-space: nowrap; }
-  .card .why { color: var(--muted); font-size: 11.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card .facts { color: var(--muted); font-size: 11px; margin-top: 3px; display: flex; gap: 9px; flex-wrap: wrap; }
-  .card .note { color: var(--amber); font-size: 11px; margin-top: 2px; }
-  .card .typed { margin-top: 2px; font-size: 11.5px; color: var(--blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .changed-yes { color: var(--accent); }
-  .changed-no { color: var(--amber); }
-  .act-click, .act-double_click { color: var(--blue); }
-  .act-type { color: var(--accent); }
-  .act-key { color: #d2a8ff; }
-  .act-done { color: var(--accent); }
-  .act-blocked, .act-error { color: var(--red); }
-  .card.task_start { border-color: #2b4a75; background: #131c2b; }
-  .card.task_end.pass { border-color: #1f7a4a; background: #11201a; }
-  .card.task_end.fail { border-color: #6b2330; background: #221317; }
-  .card.error { border-color: #6b2330; background: #221317; }
+  #runsBody { flex: 1; min-height: 0; overflow: auto; }
+  .runrow { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--border); cursor: pointer; }
+  .runrow:hover { background: var(--surface-2); }
+  .runrow .id { font-size: 11.5px; color: var(--faint); min-width: 100px; font-variant-numeric: tabular-nums; }
+  .runrow .text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .runrow .meta { font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+  .detail { padding: 12px 14px; }
+  .detail h3 { margin: 14px 0 6px; font-size: 10.5px; font-weight: 620; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+  .detail h3:first-child { margin-top: 0; }
+  .detail .files a { display: inline-block; font-size: 12px; color: var(--accent); margin: 0 12px 6px 0; }
+  .detail .kv { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+  .steprow { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .steprow .n { color: var(--faint); min-width: 22px; font-variant-numeric: tabular-nums; }
+  .steprow .a { font-weight: 540; min-width: 74px; }
+  .steprow .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
 
-  #runsView { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-  .runrow { display: flex; gap: 9px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border);
-            cursor: pointer; min-width: 0; }
-  .runrow:hover { background: var(--panel-2); }
-  .runrow .id { color: var(--muted); font-size: 11.5px; min-width: 96px; }
-  .runrow .task { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .runrow .meta { color: var(--muted); font-size: 11px; white-space: nowrap; }
-  .rundetail { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; }
-  .rundetail .kv { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-  .rundetail .files a { display: inline-block; margin: 2px 8px 2px 0; font-size: 11.5px; }
-  .rundetail h3 { margin: 10px 0 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-
-  #rawOverlay { display: none; position: fixed; inset: 7vh 8vw; z-index: 50; background: var(--panel);
-                border: 1px solid var(--border); border-radius: 12px; overflow: hidden; flex-direction: column;
-                box-shadow: 0 18px 60px rgba(0,0,0,0.5); }
+  /* ---------- log modal ---------- */
+  #rawOverlay { display: none; position: fixed; inset: 6vh 8vw; z-index: 40; background: var(--surface);
+                border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+                flex-direction: column; overflow: hidden; }
   #rawOverlay.show { display: flex; }
-  #rawOverlay .head { display: flex; align-items: center; gap: 10px; padding: 9px 13px;
-                      border-bottom: 1px solid var(--border); background: var(--panel-2); }
-  #rawOverlay pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 12px 14px;
-                    white-space: pre-wrap; color: #9aa4b2; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  #rawOverlay .card-h { background: var(--surface); }
+  #rawOverlay pre { flex: 1; min-height: 0; margin: 0; overflow: auto; padding: 14px; font-size: 12px;
+                    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--dim); white-space: pre-wrap; }
+  .backdrop { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.28); z-index: 39; }
+  .backdrop.show { display: block; }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">TIVM<span>.</span></div>
-  <div id="status" class="status"><span class="dot"></span><span id="statusText">idle</span></div>
-  <div class="chip" id="taskChip">no task</div>
-  <div class="chip" id="stepChip">step 0</div>
-  <div class="chip" id="timeChip">0.0s</div>
-  <div class="chip" id="tokenChip">jev 0 · openai 0</div>
-  <div class="chip" id="modelChip">planner —</div>
-  <div class="chip" id="sysChip">—</div>
+  <div class="brand">TiVM <span class="ver" id="verChip">v0.2.0</span></div>
+  <div class="status" id="status"><i></i><span id="statusText">idle</span></div>
+  <div class="dim" id="taskChip" style="font-size:12px">no task</div>
   <div class="spacer"></div>
-  <a class="chip" href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">desktop ↗</a>
-  <a class="chip" href="/api/result" target="_blank">json ↗</a>
-  <span class="chip link" id="rawBtn">raw log</span>
+  <div class="metrics" id="sysChip"></div>
+  <button class="ghost" id="themeBtn" title="Toggle theme">◐</button>
+  <a class="ghost" href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">Desktop ↗</a>
+  <a class="ghost" href="/api/result" target="_blank">JSON ↗</a>
+  <button class="ghost" id="rawBtn">Log</button>
 </header>
 
 <main>
-  <div class="col">
-    <section class="panel" style="flex:1; min-height:0;">
-      <h2>Live screen <span class="right" id="screenInfo"></span></h2>
-      <div class="screenwrap"><img id="frame" alt="linux desktop"></div>
+  <div class="stack">
+    <article class="card grow">
+      <div class="card-h">
+        <h1>Sandbox</h1>
+        <span class="pill" id="screenInfo">a11y</span>
+        <span class="spacer"></span>
+        <span class="meta" id="stepChip">step 0</span>
+        <span class="meta" id="timeChip">0.0s</span>
+        <span class="meta" id="tokenChip">0 tok</span>
+      </div>
+      <div class="screenwrap"><img id="frame" alt="sandbox screen"></div>
       <div class="progress"><i id="bar"></i></div>
       <div class="nowbar">
-        <span class="label">now</span>
-        <span class="value" id="nowAction">idle</span>
+        <span class="label">Now</span>
+        <b id="nowAction">idle</b>
         <span class="why" id="nowWhy"></span>
       </div>
-    </section>
+    </article>
 
-    <section class="panel">
-      <div class="controls">
-        <textarea id="task" placeholder='One test per line, e.g. Clone https://github.com/owner/repo and show its files'></textarea>
+    <article class="card" style="flex:0 0 auto;">
+      <div class="runform">
+        <textarea id="task" placeholder="Describe a test, one per line — e.g. Clone https://github.com/owner/repo and show its files"></textarea>
         <div class="row">
-          <button id="run" class="primary">Run tests</button>
-          <button id="stop" class="danger" disabled>Stop</button>
-          <span class="hint">one task per line · ⌘/Ctrl+Enter to run</span>
+          <button class="primary" id="run">Run tests</button>
+          <button class="danger" id="stop" disabled>Stop</button>
+          <span class="hint">one task per line · ⌘/Ctrl + Enter</span>
         </div>
         <div class="presets">
           <button data-task='Open a terminal and run "uname -a && node -v && bun -v && git --version"'>check toolchain</button>
@@ -196,37 +283,37 @@
           <button data-task='Open the Web browser and go to example.com'>browse a site</button>
         </div>
       </div>
-    </section>
-
-    <section class="panel" id="verdict" style="flex:0 0 auto;">
-      <h2>Verdict <span class="right" id="summary"></span></h2>
-      <div id="results"></div>
-    </section>
+      <div class="card-h" style="border-top:1px solid var(--border); border-bottom:0; padding-top:9px; padding-bottom:9px;">
+        <h2>Verdict</h2>
+        <span class="spacer"></span>
+        <span class="meta" id="summary">waiting…</span>
+      </div>
+      <div class="list" id="results"></div>
+    </article>
   </div>
 
-  <div class="col">
-    <section class="panel" style="flex:1; min-height:0;">
-      <h2>Activity
-        <span class="tabs">
-          <button id="tabLive" class="active">live</button>
-          <button id="tabRuns">runs</button>
-        </span>
-      </h2>
-      <div id="liveView" style="flex:1; min-height:0; display:flex; flex-direction:column;">
-        <div class="planstrip" id="planStrip">no plan yet</div>
+  <div class="stack">
+    <article class="card grow">
+      <div class="card-h">
+        <h1>Activity</h1>
+        <span class="spacer"></span>
+        <div class="seg"><button id="tabLive" class="active">Current</button><button id="tabRuns">History</button></div>
+      </div>
+      <div id="liveView" class="grow" style="display:flex; flex-direction:column; min-height:0;">
+        <div class="strip" id="planStrip">no plan yet</div>
         <div id="feed"></div>
       </div>
-      <div id="runsView" style="display:none;">
-        <div class="planstrip" id="runsStrip">recent runs on disk</div>
-        <div class="rundetail" id="runsBody"></div>
+      <div id="runsView" class="grow" style="display:none; flex-direction:column; min-height:0;">
+        <div class="strip" id="runsStrip">recent runs</div>
+        <div id="runsBody"></div>
       </div>
-    </section>
+    </article>
   </div>
 </main>
 
+<div class="backdrop" id="backdrop"></div>
 <div id="rawOverlay">
-  <div class="head"><b>raw log</b><span class="hint">last 300 lines</span>
-    <span class="spacer" style="flex:1"></span><button id="rawClose">close</button></div>
+  <div class="card-h"><h1>Raw log</h1><span class="spacer"></span><button class="ghost" id="rawClose">Close</button></div>
   <pre id="log"></pre>
 </div>
 
@@ -234,18 +321,25 @@
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n ?? 0));
-const MAX_VERDICT_ROWS = 6;
+const secs = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : Math.round(ms) + 'ms');
+const MAX_VERDICT_ROWS = 4;
 
 let seen = 0;
 let tab = 'live';
 let token = localStorage.getItem('tivm_token') || '';
-let runsLoaded = 0;
+
+const params = new URLSearchParams(location.search);
+$('themeBtn').onclick = () => {
+  const dark = getComputedStyle(document.body).getPropertyValue('--bg').trim() === '#0f1115';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  localStorage.setItem('tivm_theme', dark ? 'light' : 'dark');
+};
 
 async function api(path, body, retry = true) {
-  const headers = {'Content-Type': 'application/json'};
+  const headers = {};
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch(path, body ? {method: 'POST', headers, body: JSON.stringify(body)}
-                                     : {headers: token ? {'Authorization': 'Bearer ' + token} : {}});
+  if (body) headers['Content-Type'] = 'application/json';
+  const res = await fetch(path, body ? {method: 'POST', headers, body: JSON.stringify(body)} : {headers});
   if (res.status === 401 && retry) {
     const t = prompt('Access token (TIVM_TOKEN):');
     if (t) { token = t; localStorage.setItem('tivm_token', t); return api(path, body, false); }
@@ -254,50 +348,60 @@ async function api(path, body, retry = true) {
   return res.json();
 }
 
-function card(entry) {
-  const div = document.createElement('div');
-  div.className = 'card ' + esc(entry.kind) + (entry.kind === 'task_end' ? (entry.passed ? ' pass' : ' fail') : '');
-  if (entry.kind === 'step') {
-    const t = entry.timing || {};
-    div.innerHTML =
-      '<div class="head mono">' +
-        '<span class="n">#' + esc(entry.n) + '</span>' +
-        '<span class="act act-' + esc(entry.action) + '">' + esc(entry.action) + '</span>' +
-        (entry.target_text ? '<span class="tgt">' + esc(entry.target_text) + '</span>'
-                           : (entry.target && entry.target !== 'no_text_target' ? '<span class="tgt mono">' + esc(entry.target) + '</span>' : '')) +
-        '<span class="flag ' + (entry.changed ? 'changed-yes' : 'changed-no') + '">' + (entry.changed ? 'changed' : 'no change') + '</span>' +
+function actionClass(a) { return String(a || '').replace(/[^a-z_]/g, ''); }
+
+function eventRow(e) {
+  const el = document.createElement('div');
+  if (e.kind === 'step') {
+    const t = e.timing || {};
+    el.className = 'ev';
+    el.innerHTML =
+      '<div class="line1">' +
+        '<span class="idx mono">' + esc(e.n) + '</span>' +
+        '<span class="act ' + esc(actionClass(e.action)) + '">' + esc(e.action) + '</span>' +
+        (e.target_text ? '<span class="target">' + esc(e.target_text) + '</span>'
+                       : (e.target && e.target !== 'no_text_target' ? '<span class="target mono">' + esc(e.target) + '</span>' : '')) +
+        '<span class="flag">' + (e.changed ? 'changed' : 'no change') + '</span>' +
       '</div>' +
-      (entry.typed ? '<div class="typed mono">typed: ' + esc(entry.typed) + '</div>' : '') +
-      (entry.reason ? '<div class="why">' + esc(entry.reason) + '</div>' : '') +
-      (entry.check ? '<div class="why">check: ' + esc(entry.check) + '</div>' : '') +
+      (e.typed ? '<div class="sub mono">' + esc(e.typed) + '</div>' : '') +
+      (e.reason ? '<div class="sub">' + esc(e.reason) + '</div>' : '') +
       '<div class="facts mono">' +
-        '<span>perc ' + esc(t.perceive ?? 0) + 'ms</span><span>dec ' + esc(t.decide ?? 0) + 'ms</span>' +
-        '<span>act ' + esc(t.act ?? 0) + 'ms</span><span>set ' + esc(t.settle ?? 0) + 'ms</span>' +
-        (entry.tokens && entry.tokens.openai ? '<span>' + fmt(entry.tokens.openai) + ' tok</span>' :
-         entry.tokens && entry.tokens.ts_in ? '<span>' + fmt(entry.tokens.ts_in + entry.tokens.ts_out) + ' tok</span>' : '') +
-      '</div>' +
-      (entry.note && /identical|could not run/.test(entry.note) ? '<div class="note">' + esc(entry.note) + '</div>' : '');
-  } else if (entry.kind === 'task_start') {
-    div.innerHTML = '<div class="head mono"><span class="act act-click">task ' + esc(entry.index) + '/' + esc(entry.total) + '</span>' +
-                    '<span class="tgt">' + esc(entry.task) + '</span></div>';
-  } else if (entry.kind === 'task_end') {
-    div.innerHTML = '<div class="head mono"><span class="badge ' + (entry.passed ? 'pass' : 'fail') + '">' +
-                    (entry.passed ? 'PASS' : 'FAIL') + '</span><span class="tgt">' + esc(entry.task) + '</span></div>' +
-                    '<div class="facts mono"><span>' + esc(entry.reason) + '</span><span>' + esc(entry.steps) + ' steps</span>' +
-                    '<span>' + esc(entry.duration_s) + 's</span></div>';
-  } else if (entry.kind === 'done' || entry.kind === 'blocked') {
-    div.innerHTML = '<div class="head mono"><span class="act act-' + esc(entry.kind) + '">' + esc(entry.kind) + '</span>' +
-                    '<span class="tgt">' + esc(entry.reason) + '</span></div>';
-  } else if (entry.kind === 'error') {
-    div.innerHTML = '<div class="head mono"><span class="act act-error">error</span><span class="tgt">' + esc(entry.message) + '</span></div>';
+        '<span>perceive ' + secs(t.perceive || 0) + '</span>' +
+        '<span>decide ' + secs(t.decide || 0) + '</span>' +
+        '<span>act ' + secs(t.act || 0) + '</span>' +
+        '<span>settle ' + secs(t.settle || 0) + '</span>' +
+        (e.tokens && e.tokens.openai ? '<span>' + fmt(e.tokens.openai) + ' tok</span>'
+          : e.tokens && e.tokens.ts_in ? '<span>' + fmt(e.tokens.ts_in + e.tokens.ts_out) + ' tok</span>' : '') +
+      '</div>';
+  } else if (e.kind === 'task_start') {
+    el.className = 'ev task';
+    el.innerHTML = '<div class="line1"><span class="badge open">RUN</span>' +
+      '<span class="task-name">' + esc(e.task) + '</span></div>';
+  } else if (e.kind === 'task_end') {
+    el.className = 'ev task';
+    el.innerHTML = '<div class="line1"><span class="badge ' + (e.passed ? 'pass' : 'fail') + '">' +
+      (e.passed ? 'PASS' : 'FAIL') + '</span><span class="task-name">' + esc(e.reason) + '</span>' +
+      '<span class="flag">' + esc(e.steps) + ' steps · ' + esc(e.duration_s) + 's</span></div>';
+  } else if (e.kind === 'done' || e.kind === 'blocked') {
+    el.className = 'ev';
+    el.innerHTML = '<div class="line1"><span class="act ' + esc(e.kind) + '">' + esc(e.kind) + '</span>' +
+      '<span class="target dim">' + esc(e.reason) + '</span></div>';
+  } else if (e.kind === 'error') {
+    el.className = 'ev';
+    el.innerHTML = '<div class="line1"><span class="act error">error</span><span class="target dim">' + esc(e.message) + '</span></div>';
+  } else {
+    return null;
   }
-  return div;
+  return el;
 }
 
 function renderTimeline(timeline) {
   const feed = $('feed');
   if (timeline.length < seen) { feed.innerHTML = ''; seen = 0; }
-  for (let i = seen; i < timeline.length; i++) feed.appendChild(card(timeline[i]));
+  for (let i = seen; i < timeline.length; i++) {
+    const row = eventRow(timeline[i]);
+    if (row) feed.appendChild(row);
+  }
   seen = timeline.length;
   let guard = 200;
   while (feed.scrollHeight > feed.clientHeight + 2 && feed.childElementCount > 1 && guard--) {
@@ -307,75 +411,73 @@ function renderTimeline(timeline) {
 
 function renderResults(results) {
   const box = $('results');
-  if (!results.length) { box.innerHTML = '<div class="more">No verdict yet — run a task to see results here.</div>'; return; }
+  if (!results.length) { box.innerHTML = '<div class="empty">Results appear here after a run.</div>'; return; }
   const shown = results.slice(-MAX_VERDICT_ROWS);
-  box.innerHTML = results.length > shown.length ? '<div class="more">+' + (results.length - shown.length) + ' earlier tasks</div>' : '';
-  box.innerHTML += shown.map((r) =>
-    '<div class="vrow">' +
-      '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
-      '<span class="task">' + esc(r.task) + '</span>' +
-      '<span class="meta">' + esc(r.reason) + ' · ' + esc(r.steps) + ' steps · ' + esc(r.duration_s ?? '?') + 's</span>' +
-    '</div>').join('');
+  box.innerHTML = (results.length > shown.length ? '<div class="empty">+' + (results.length - shown.length) + ' earlier tasks</div>' : '') +
+    shown.map((r) =>
+      '<div class="item"><span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
+      '<span class="text">' + esc(r.task) + '</span>' +
+      '<span class="meta">' + esc(r.steps) + ' steps · ' + esc(r.duration_s ?? '?') + 's</span></div>').join('');
 }
 
 function render(s) {
   const st = $('status');
-  const mode = s.error ? 'failed' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : 'idle';
-  st.className = 'status ' + (mode === 'idle' ? '' : mode);
-  $('statusText').textContent = mode === 'running' ? 'running' : mode === 'passed' ? 'all passed' : mode === 'failed' ? 'failed' : 'idle';
-  $('taskChip').innerHTML = s.tasks.length ? 'task <b>' + Math.max(1, Math.min(s.task_index, s.tasks.length)) + '/' + s.tasks.length + '</b>' : 'no task';
+  const mode = s.error ? 'failed' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : '';
+  st.className = 'status' + (mode ? ' ' + mode : '');
+  $('statusText').textContent = mode === 'running' ? 'running' : mode === 'passed' ? 'passed' : mode === 'failed' ? 'failed' : 'idle';
+  $('taskChip').textContent = s.tasks.length
+    ? 'Task ' + Math.max(1, Math.min(s.task_index, s.tasks.length)) + ' of ' + s.tasks.length
+    : 'No task';
   const cur = s.current || {};
-  $('stepChip').innerHTML = 'step <b>' + (cur.n || 0) + (s.max_steps ? '/' + s.max_steps : '') + '</b>';
-  const secs = s.finished_at && s.started_at ? (s.finished_at - s.started_at) : s.started_at ? (Date.now() / 1000 - s.started_at) : 0;
-  $('timeChip').textContent = secs.toFixed(1) + 's';
-  $('tokenChip').innerHTML = 'jev <b>' + fmt(s.tokens.input + s.tokens.output) + '</b> · openai <b>' + fmt(s.openai_tokens) + '</b>';
-  $('modelChip').innerHTML = esc(s.planner) + ' · <b>' + esc(s.planner_model) + '</b>';
+  const secsTotal = s.finished_at && s.started_at ? (s.finished_at - s.started_at) : s.started_at ? (Date.now() / 1000 - s.started_at) : 0;
+  $('stepChip').textContent = 'Step ' + (cur.n || 0) + (s.max_steps ? '/' + s.max_steps : '');
+  $('timeChip').textContent = secsTotal.toFixed(1) + 's';
+  $('tokenChip').textContent = fmt(s.tokens.input + s.tokens.output) + ' jev · ' + fmt(s.openai_tokens) + ' openai';
   $('frame').src = s.frame;
-  $('screenInfo').textContent = s.perception + ' perception';
-  $('nowAction').textContent = cur.action ? cur.action + (cur.target_text ? ' → ' + cur.target_text : '') : (s.running ? 'thinking…' : 'idle');
+  $('screenInfo').textContent = s.planner === 'openai' ? 'openai · ' + s.planner_model : 'jev · ' + s.planner_model;
+  $('nowAction').textContent = cur.action
+    ? cur.action + (cur.target_text ? ' → ' + cur.target_text : '')
+    : (s.running ? 'thinking…' : 'idle');
   $('nowWhy').textContent = cur.reason || '';
   $('bar').style.width = s.max_steps ? Math.min(100, ((cur.n || 0) / s.max_steps) * 100) + '%' : (s.running ? '100%' : '0%');
   $('run').disabled = s.running;
   $('stop').disabled = !s.running;
   renderTimeline(s.timeline || []);
   renderResults(s.results || []);
-  $('summary').innerHTML = s.results.length
-    ? '<b>' + s.results.filter((r) => r.passed).length + '/' + s.results.length + '</b> passing' + (s.running ? ' · running…' : '')
+  $('summary').textContent = s.results.length
+    ? s.results.filter((r) => r.passed).length + '/' + s.results.length + ' passing' + (s.running ? '…' : '')
     : 'waiting…';
   const plan = s.plan || [], mem = s.memory || '';
   $('planStrip').innerHTML = plan.length
-    ? '<b>plan</b> ' + plan.map(esc).join(' → ') + (mem ? ' &nbsp;·&nbsp; <b>mem</b> ' + esc(mem) : '')
-    : (s.running ? 'planning…' : 'no plan yet');
+    ? '<b>Plan</b> ' + plan.map(esc).join(' → ') + (mem ? ' &nbsp;·&nbsp; <b>Memory</b> ' + esc(mem) : '')
+    : 'No plan yet';
   const text = (s.log || []).join('\n');
-  const log = $('log');
-  if (log.textContent !== text) { log.textContent = text; log.scrollTop = log.scrollHeight; }
+  if ($('log').textContent !== text) { $('log').textContent = text; $('log').scrollTop = $('log').scrollHeight; }
 }
 
 async function renderSystem() {
   try {
     const y = await api('/api/system');
-    const pct = y.disk_total_gb ? Math.round((y.disk_used_gb / y.disk_total_gb) * 100) : 0;
-    $('sysChip').innerHTML = 'v' + esc(y.version) + ' · disk <b>' + y.disk_used_gb + '/' + y.disk_total_gb + 'G</b> (' + pct + '%)' +
-      ' · mem <b>' + y.mem_free_mb + 'M</b> free · load <b>' + y.load[0] + '</b>';
+    $('verChip').textContent = 'v' + y.version;
+    $('sysChip').innerHTML = '<span>disk <b>' + y.disk_used_gb + '/' + y.disk_total_gb + 'G</b></span>' +
+      '<span>mem <b>' + y.mem_free_mb + 'M</b> free</span><span>load <b>' + y.load[0] + '</b></span>';
   } catch (e) {}
 }
 
 async function renderRuns() {
+  const body = $('runsBody');
   try {
     const data = await api('/api/runs');
-    runsLoaded = data.runs.length;
-    const body = $('runsBody');
-    $('runsStrip').innerHTML = '<b>' + data.runs.length + '</b> run' + (data.runs.length === 1 ? '' : 's') + ' on disk' +
-      (data.runs.length ? ' — click one to inspect' : '');
+    $('runsStrip').innerHTML = '<b>' + data.runs.length + '</b> run' + (data.runs.length === 1 ? '' : 's') + ' exported';
     if (!data.runs.length) {
-      body.innerHTML = '<div class="more">No runs yet. Every completed task suite is exported to <span class="mono">runs/</span> and listed here.</div>';
+      body.innerHTML = '<div class="empty">Completed suites are exported to <span class="mono">runs/</span> and listed here.</div>';
       return;
     }
     body.innerHTML = data.runs.map((r) =>
       '<div class="runrow" data-id="' + esc(r.id) + '">' +
         '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
         '<span class="id mono">' + esc(r.id) + '</span>' +
-        '<span class="task">' + esc((r.tasks[0] || {}).task || '') + (r.tasks.length > 1 ? '  +' + (r.tasks.length - 1) : '') + '</span>' +
+        '<span class="text">' + esc((r.tasks[0] || {}).task || '') + (r.tasks.length > 1 ? '  +' + (r.tasks.length - 1) + ' more' : '') + '</span>' +
         '<span class="meta">' + esc(r.duration_s ?? '?') + 's · ' + fmt((r.tokens && (r.tokens.input + r.tokens.output)) + (r.openai_tokens || 0)) + ' tok</span>' +
       '</div>').join('');
     body.querySelectorAll('.runrow').forEach((el) => el.onclick = () => showRun(el.dataset.id));
@@ -384,29 +486,30 @@ async function renderRuns() {
 
 async function showRun(id) {
   const body = $('runsBody');
-  body.innerHTML = '<div class="more">loading ' + esc(id) + '…</div>';
+  body.innerHTML = '<div class="empty">Loading ' + esc(id) + '…</div>';
   try {
     const d = await api('/api/runs/' + id);
     const s = d.summary || {};
     const tasks = (s.tasks || []).map((t) =>
-      '<div class="vrow"><span class="badge ' + (t.passed ? 'pass' : 'fail') + '">' + (t.passed ? 'PASS' : 'FAIL') + '</span>' +
-      '<span class="task">' + esc(t.task) + '</span><span class="meta">' + esc(t.reason) + ' · ' + esc(t.steps) + ' steps · ' + esc(t.duration_s ?? '?') + 's</span></div>').join('');
-    const files = (d.files || []).map((f) => '<a href="' + esc(f.url) + '" target="_blank">' + esc(f.name) + ' (' + Math.round(f.bytes / 1024) + 'kB)</a>').join('');
+      '<div class="item"><span class="badge ' + (t.passed ? 'pass' : 'fail') + '">' + (t.passed ? 'PASS' : 'FAIL') + '</span>' +
+      '<span class="text">' + esc(t.task) + '</span><span class="meta">' + esc(t.steps) + ' steps · ' + esc(t.duration_s ?? '?') + 's</span></div>').join('');
+    const files = (d.files || []).map((f) =>
+      '<a href="' + esc(f.url) + '" target="_blank">' + esc(f.name) + '</a>').join('');
     const steps = (d.timeline || []).filter((t) => t.kind === 'step').map((t) =>
-      '<div class="runrow"><span class="id mono">#' + esc(t.n) + '</span><span class="task">' + esc(t.action) + ' ' + esc(t.target_text || '') + '</span>' +
-      '<span class="meta">' + esc((t.reason || '').slice(0, 70)) + '</span></div>').join('');
+      '<div class="steprow"><span class="n mono">' + esc(t.n) + '</span><span class="a">' + esc(t.action) + '</span>' +
+      '<span class="t">' + esc((t.reason || t.target_text || '').slice(0, 90)) + '</span></div>').join('');
     body.innerHTML =
-      '<div class="kv"><button id="runsBack">← runs</button>' +
-      '<span class="badge ' + (s.passed ? 'pass' : 'fail') + '">' + (s.passed ? 'PASS' : 'FAIL') + '</span>' +
-      '<span class="chip">' + esc(s.duration_s ?? '?') + 's</span>' +
-      '<span class="chip">jev ' + fmt((s.tokens && (s.tokens.input + s.tokens.output)) || 0) + ' · openai ' + fmt(s.openai_tokens) + '</span>' +
-      '<span class="chip">' + esc(id) + '</span></div>' +
-      '<h3>tasks</h3>' + tasks +
-      '<h3>artifacts</h3><div class="files">' + files + '</div>' +
-      '<h3>steps</h3>' + steps;
-    $('runsBack').onclick = () => { renderRuns(); };
+      '<div class="detail">' +
+        '<div class="kv"><button class="plain" id="runsBack">Back</button>' +
+        '<span class="badge ' + (s.passed ? 'pass' : 'fail') + '">' + (s.passed ? 'PASS' : 'FAIL') + '</span>' +
+        '<span class="meta dim">' + esc(s.duration_s ?? '?') + 's · ' + fmt((s.tokens && (s.tokens.input + s.tokens.output)) || 0) + ' jev tok · ' + fmt(s.openai_tokens) + ' openai tok</span></div>' +
+        '<h3>Tasks</h3>' + tasks +
+        '<h3>Artifacts</h3><div class="files">' + files + '</div>' +
+        '<h3>Steps</h3>' + steps +
+      '</div>';
+    $('runsBack').onclick = () => renderRuns();
   } catch (e) {
-    body.innerHTML = '<div class="more">could not load run ' + esc(id) + '</div>';
+    body.innerHTML = '<div class="empty">Could not load ' + esc(id) + '</div>';
   }
 }
 
@@ -434,8 +537,9 @@ $('run').onclick = async () => {
 $('stop').onclick = () => api('/api/stop', {}).catch(() => {});
 $('task').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('run').click(); });
 document.querySelectorAll('.presets button').forEach((b) => b.onclick = () => { $('task').value = b.dataset.task; $('task').focus(); });
-$('rawBtn').onclick = () => $('rawOverlay').classList.add('show');
-$('rawClose').onclick = () => $('rawOverlay').classList.remove('show');
+$('rawBtn').onclick = () => { $('rawOverlay').classList.add('show'); $('backdrop').classList.add('show'); };
+$('rawClose').onclick = () => { $('rawOverlay').classList.remove('show'); $('backdrop').classList.remove('show'); };
+$('backdrop').onclick = () => { $('rawOverlay').classList.remove('show'); $('backdrop').classList.remove('show'); };
 $('tabLive').onclick = () => setTab('live');
 $('tabRuns').onclick = () => setTab('runs');
 
