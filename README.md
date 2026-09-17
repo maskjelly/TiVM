@@ -12,13 +12,12 @@ actions run through a11y `invoke` or `xdotool`. A fresh sandbox on every run; ve
 screenshots are exported before teardown.
 
 ![Control panel](docs/panel.png)
-*Control panel: live screen with the chosen target boxed, the orchestrator's plan/memory strip,
-per-step timeline (action, reason, self-check, timings, tokens) and per-task verdicts.*
+*Control panel: square, dense, monospace. Live screen with the chosen target boxed, the
+orchestrator's plan/memory strip, per-step timeline (action, reason, timings, tokens) and verdicts.*
 
 ![Run history, dark theme](docs/runs-dark.png)
-*Run history (dark theme): every completed suite is exported to `runs/<id>/` and can be reopened
-here with its timeline, verdicts, token usage and artifacts. The theme follows your OS, with a
-toggle and `?theme=dark` / `?theme=light` overrides.*
+*Run history: every completed suite is exported to `runs/<id>/` and can be reopened here with its
+timeline, verdicts, token usage and artifacts.*
 
 ## Quick start
 
