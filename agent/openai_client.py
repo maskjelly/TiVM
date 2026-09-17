@@ -55,14 +55,17 @@ Reply with JSON only:
 
 Rules:
 - One action per reply. Use exactly one of the action values.
-- Prefer a listed element id for clicks. Use x/y (pixels, from the screenshot) only when no element fits.
+- For clicks, "target" must be an element id from the list (never empty), or supply "x"/"y" pixels.
+  Prefer a listed element id; use x/y only when no element fits.
 - For action "type", put the complete exact text to type in "text" (a full shell command if needed).
   The text is typed into whatever has keyboard focus. Focus is shown as "has keyboard focus" in the element list.
 - For action "key", valid keys: Return, Tab, Escape, space, BackSpace, ctrl+l, ctrl+t, ctrl+w, ctrl+a,
   ctrl+s, ctrl+f, alt+F4, super, Up, Down, Left, Right, Page_Down, Page_Up.
 - If the screen shows a dialog blocking progress (like a browser notice), dismiss it first.
 - Set done=true only when the task's goal is visibly achieved on screen.
-- Set blocked=true only when an unrecoverable error or a login/password prompt blocks the task.
+- Set blocked=true only when an unrecoverable error or a login/password prompt blocks the task,
+  or when the task asks for something that does not exist (a folder or app that is not on screen
+  and cannot be reached), and say why in "reason".
 - Never repeat an action that produced no change; choose a different target or approach."""
 
 

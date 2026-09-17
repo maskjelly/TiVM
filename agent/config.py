@@ -33,6 +33,7 @@ ABORT_REPEAT_LIMIT = 4
 STEP_SLEEP = float(os.environ.get("TIVM_STEP_SLEEP", "1.0"))
 SETTLE_TIMEOUT = float(os.environ.get("TIVM_SETTLE_TIMEOUT", "1.5"))
 SETTLE_POLL = float(os.environ.get("TIVM_SETTLE_POLL", "0.08"))
+SETTLE_MIN = float(os.environ.get("TIVM_SETTLE_MIN", "0.35"))
 A11Y_SKIP_OCR_MIN = int(os.environ.get("TIVM_A11Y_SKIP_OCR_MIN", "10"))
 CHANGE_RATIO = float(os.environ.get("TIVM_CHANGE_RATIO", "0.004"))
 TYPE_PRESSES_RETURN = os.environ.get("TIVM_TYPE_RETURN", "1") not in ("0", "false", "False")

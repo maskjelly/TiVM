@@ -3,125 +3,350 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TiVM — Jev computer use</title>
+<title>TiVM — agent control panel</title>
 <style>
-  :root { color-scheme: dark; }
+  :root {
+    color-scheme: dark;
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c2230;
+    --border: #262d3a;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #4ade80;
+    --accent-dim: #17351f;
+    --blue: #79c0ff;
+    --red: #ff8f9b;
+    --red-dim: #3a1720;
+    --amber: #e3b341;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-         background: #0b0d10; color: #d7dde5; }
-  header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-           padding: 14px 18px; border-bottom: 1px solid #1e232b; }
-  h1 { font-size: 15px; margin: 0 12px 0 0; letter-spacing: .06em; }
-  .pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; background: #1a1f27; border: 1px solid #2a313c; }
-  .pill.on { background: #06281c; border-color: #0a5c3d; color: #4ade80; }
-  .pill.done { background: #0a2340; border-color: #14508a; color: #7cc4ff; }
-  .pill.fail { background: #2b0f13; border-color: #7f1d2b; color: #ff8f9b; }
-  a { color: #7cc4ff; }
-  main { display: grid; grid-template-columns: minmax(420px, 1.25fr) minmax(340px, 1fr);
-         gap: 14px; padding: 14px 18px 24px; }
-  .panel { border: 1px solid #1e232b; border-radius: 10px; background: #0f1217; overflow: hidden; }
-  .panel h2 { font-size: 12px; letter-spacing: .08em; color: #8b95a3; margin: 0;
-              padding: 10px 12px; border-bottom: 1px solid #1e232b; text-transform: uppercase; }
-  #frame { width: 100%; display: block; background: #000; }
-  #log { height: 380px; overflow: auto; padding: 10px 12px; white-space: pre-wrap; font-size: 12.5px; }
-  .controls { display: flex; gap: 8px; padding: 12px; flex-wrap: wrap; }
-  textarea { flex: 1; min-width: 220px; background: #0b0e12; border: 1px solid #2a313c;
-             color: #e6ebf1; border-radius: 8px; padding: 9px 11px; font: inherit; resize: vertical; }
-  button { background: #16202c; border: 1px solid #2a313c; color: #dbe4ee; border-radius: 8px;
-           padding: 9px 13px; font: inherit; cursor: pointer; }
-  button:hover { background: #1d2a39; }
-  button.primary { background: #0d3b2b; border-color: #15654a; color: #86efac; }
-  button.danger { background: #3b1218; border-color: #7f1d2b; color: #ffb3bd; }
-  .presets { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
-  .presets button { font-size: 12px; padding: 6px 10px; }
-  .meta { padding: 0 12px 12px; color: #8b95a3; font-size: 12px; }
-  #results { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
-  .row { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
-  .tag { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11px; }
-  .tag.pass { background: #06281c; color: #4ade80; border: 1px solid #0a5c3d; }
-  .tag.fail { background: #2b0f13; color: #ff8f9b; border: 1px solid #7f1d2b; }
-  .row .why { color: #8b95a3; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    margin: 0;
+    font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 0;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+  }
+  .brand { font-weight: 650; letter-spacing: 0.14em; font-size: 12.5px; }
+  .brand span { color: var(--accent); }
+  .status { display: inline-flex; align-items: center; gap: 7px; padding: 3px 11px; border-radius: 999px;
+            background: var(--panel-2); border: 1px solid var(--border); font-size: 12px; font-weight: 550; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status.running { border-color: #1f5f3f; color: var(--accent); }
+  .status.running .dot { background: var(--accent); animation: pulse 1.1s infinite; }
+  .status.passed { border-color: #1f5f3f; color: var(--accent); }
+  .status.passed .dot { background: var(--accent); }
+  .status.failed { border-color: #5f1f2a; color: var(--red); }
+  .status.failed .dot { background: var(--red); }
+  @keyframes pulse { 50% { opacity: 0.25; } }
+  .chip { padding: 3px 10px; border-radius: 8px; font-size: 12px; background: var(--panel-2);
+          border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  .chip b { color: var(--text); font-weight: 560; }
+  .chip.link { cursor: pointer; }
+  .spacer { flex: 1; }
+
+  main {
+    min-height: 0; display: grid; gap: 14px; padding: 12px 16px 14px;
+    grid-template-columns: minmax(360px, 1.02fr) minmax(420px, 1fr);
+  }
+  .col { min-height: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  section.panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; display: flex; flex-direction: column; min-height: 0;
+  }
+  .panel h2 { margin: 0; padding: 8px 13px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+              color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border);
+              background: var(--panel-2); display: flex; gap: 10px; align-items: center; }
+  .panel h2 .right { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+  .screenwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #05070a; }
+  .screenwrap img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+
+  .nowbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 8px 13px;
+            border-top: 1px solid var(--border); background: var(--panel-2); }
+  .nowbar .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .nowbar .value { font-weight: 620; font-size: 12.5px; }
+  .nowbar .why { color: var(--muted); font-size: 12px; flex: 1 1 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .progress { height: 3px; background: var(--panel-2); flex: 0 0 auto; }
+  .progress > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+
+  .controls { display: flex; flex-direction: column; gap: 8px; padding: 10px 13px; border-top: 1px solid var(--border); }
+  textarea { width: 100%; height: 46px; resize: none; background: #0b0f14; color: var(--text);
+             border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; font: inherit; }
+  textarea:focus { outline: none; border-color: #2f6f4f; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 560; cursor: pointer; border-radius: 9px; padding: 8px 15px;
+           background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  button:hover { border-color: #3b465a; }
+  button.primary { background: var(--accent-dim); border-color: #1f7a4a; color: var(--accent); }
+  button.danger { background: var(--red-dim); border-color: #6b2330; color: var(--red); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .presets button { font-size: 11.5px; padding: 4px 9px; color: var(--muted); font-weight: 480; }
+  .hint { color: var(--muted); font-size: 11.5px; }
+
+  .vrow { display: flex; gap: 9px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
+  .vrow:last-child { border-bottom: 0; }
+  .vrow .task { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vrow .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+  .badge { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; letter-spacing: 0.03em; }
+  .badge.pass { background: var(--accent-dim); color: var(--accent); border: 1px solid #1f7a4a; }
+  .badge.fail { background: var(--red-dim); color: var(--red); border: 1px solid #6b2330; }
+  .more { padding: 5px 12px; color: var(--muted); font-size: 11.5px; }
+
+  #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; justify-content: flex-end; }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; background: var(--panel-2); flex: 0 0 auto; }
+  .card .head { display: flex; gap: 7px; align-items: center; flex-wrap: nowrap; min-width: 0; }
+  .card .n { color: var(--muted); font-size: 11.5px; min-width: 24px; }
+  .card .act { font-weight: 650; font-size: 12px; letter-spacing: 0.03em; }
+  .card .tgt { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .card .flag { margin-left: auto; font-size: 11px; white-space: nowrap; }
+  .card .why { color: var(--muted); font-size: 11.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .facts { color: var(--muted); font-size: 11px; margin-top: 3px; display: flex; gap: 9px; flex-wrap: wrap; }
+  .card .note { color: var(--amber); font-size: 11px; margin-top: 2px; }
+  .card .typed { margin-top: 2px; font-size: 11.5px; color: var(--blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .changed-yes { color: var(--accent); }
+  .changed-no { color: var(--amber); }
+  .act-click, .act-double_click { color: var(--blue); }
+  .act-type { color: var(--accent); }
+  .act-key { color: #d2a8ff; }
+  .act-done { color: var(--accent); }
+  .act-blocked, .act-error { color: var(--red); }
+  .card.task_start { border-color: #2b4a75; background: #131c2b; }
+  .card.task_end.pass { border-color: #1f7a4a; background: #11201a; }
+  .card.task_end.fail { border-color: #6b2330; background: #221317; }
+  .card.error { border-color: #6b2330; background: #221317; }
+
+  #rawOverlay {
+    display: none; position: fixed; inset: 7vh 8vw; z-index: 50;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    flex-direction: column; box-shadow: 0 18px 60px rgba(0,0,0,0.5);
+  }
+  #rawOverlay.show { display: flex; }
+  #rawOverlay .head { display: flex; align-items: center; gap: 10px; padding: 9px 13px;
+                      border-bottom: 1px solid var(--border); background: var(--panel-2); }
+  #rawOverlay pre { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 12px 14px;
+                    white-space: pre-wrap; color: #9aa4b2; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>TIVM</h1>
-  <span id="status" class="pill">idle</span>
-  <span id="steps" class="pill">step 0</span>
-  <span id="tokens" class="pill">tokens 0</span>
-  <a href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">open desktop view</a>
-  <a href="/api/result" target="_blank">verdict json</a>
+  <div class="brand">TIVM<span>.</span></div>
+  <div id="status" class="status"><span class="dot"></span><span id="statusText">idle</span></div>
+  <div class="chip" id="taskChip">no task</div>
+  <div class="chip" id="stepChip">step 0/0</div>
+  <div class="chip" id="timeChip">0.0s</div>
+  <div class="chip" id="tokenChip">tokens 0</div>
+  <div class="chip" id="modelChip">planner —</div>
+  <div class="spacer"></div>
+  <a class="chip" href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">desktop ↗</a>
+  <a class="chip" href="/api/result" target="_blank">json ↗</a>
+  <span class="chip link" id="rawBtn">raw log</span>
 </header>
 
 <main>
-  <section class="panel">
-    <h2>Live screen (green box = Jev's last choice)</h2>
-    <img id="frame" alt="linux desktop">
-    <div class="controls">
-      <textarea id="task" rows="2" placeholder='One test per line, e.g.&#10;Open the text editor (Mousepad) and type "hello from Jev"'></textarea>
-      <button id="run" class="primary">Run</button>
-      <button id="stop" class="danger">Stop</button>
-    </div>
-    <div class="presets">
-      <button data-task='Open the text editor (Mousepad) and type "hello from Jev"'>text editor + type</button>
-      <button data-task='Open the file manager and open the "Documents" folder'>open Documents</button>
-      <button data-task='Open the Web browser and search the web for "typesafe ai"'>web search</button>
-      <button data-task='Open the text editor (Mousepad) and type "hello from Jev"&#10;Open the file manager and open the "Documents" folder'>suite of 2</button>
-    </div>
-    <div class="meta" id="meta"></div>
-  </section>
+  <div class="col">
+    <section class="panel" style="flex:1; min-height:0;">
+      <h2>Live screen <span class="right" id="screenInfo"></span></h2>
+      <div class="screenwrap"><img id="frame" alt="linux desktop"></div>
+      <div class="progress"><i id="bar"></i></div>
+      <div class="nowbar">
+        <span class="label">now</span>
+        <span class="value" id="nowAction">idle</span>
+        <span class="why" id="nowWhy"></span>
+      </div>
+    </section>
 
-  <section class="panel">
-    <h2>Verdict</h2>
-    <div id="results"></div>
-  </section>
+    <section class="panel">
+      <div class="controls">
+        <textarea id="task" placeholder='One test per line, e.g. Clone https://github.com/owner/repo and show its files'></textarea>
+        <div class="row">
+          <button id="run" class="primary">Run tests</button>
+          <button id="stop" class="danger" disabled>Stop</button>
+          <span class="hint">one task per line · ⌘/Ctrl+Enter to run</span>
+        </div>
+        <div class="presets">
+          <button data-task='Open the text editor (Mousepad) and type "hello from Jev"'>editor + type</button>
+          <button data-task='Open the file manager and open the "Documents" folder'>open Documents</button>
+          <button data-task='Clone https://github.com/maskjelly/whiteye.in and show its files'>clone a repo</button>
+          <button data-task='Open the Web browser and go to example.com'>browse a site</button>
+        </div>
+      </div>
+    </section>
+  </div>
 
-  <section class="panel" style="grid-column: 1 / -1;">
-    <h2>Decision log</h2>
-    <div id="log"></div>
-  </section>
+  <div class="col">
+    <section class="panel" id="verdict" style="flex:0 0 auto;">
+      <h2>Verdict <span class="right" id="summary"></span></h2>
+      <div id="results"></div>
+    </section>
+
+    <section class="panel" style="flex:1; min-height:0;">
+      <h2>What the agent is doing</h2>
+      <div id="feed"></div>
+    </section>
+  </div>
 </main>
+
+<div id="rawOverlay">
+  <div class="head"><b>raw log</b><span class="hint">last 300 lines</span>
+    <span class="spacer" style="flex:1"></span><button id="rawClose">close</button></div>
+  <pre id="log"></pre>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n ?? 0));
+const MAX_VERDICT_ROWS = 6;
+
+let seen = 0;
 
 async function api(path, body) {
   const res = await fetch(path, body ? {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body),
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
   } : undefined);
   return res.json();
 }
 
-async function tick() {
-  try {
-    const s = await api('/api/state');
-    const st = $('status');
-    st.textContent = s.error ? 'error' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : 'idle';
-    st.className = 'pill' + (s.error ? ' fail' : s.running ? ' on' : s.passed === true ? 'done' : s.passed === false ? 'fail' : '');
-    $('steps').textContent = 'task ' + s.task_index + '/' + s.tasks.length + ' · step ' + s.step;
-    $('tokens').textContent = 'tokens ' + (s.tokens.input + s.tokens.output);
-    $('frame').src = s.frame;
-    $('log').textContent = s.log.join('\n');
-    $('log').scrollTop = $('log').scrollHeight;
-    $('meta').textContent = s.task ? ('current: ' + s.task) : 'no task yet';
-    $('results').innerHTML = s.results.map((r) =>
-      '<div class="row"><span class="tag ' + (r.passed ? 'pass' : 'fail') + '">' +
-      (r.passed ? 'PASS' : 'FAIL') + '</span><span>' + escapeHtml(r.task) +
-      '</span><span class="why">' + escapeHtml(r.reason) + ' · ' + r.steps + ' steps</span></div>'
-    ).join('');
-  } catch (e) {}
-  setTimeout(tick, 1500);
+function card(entry) {
+  const div = document.createElement('div');
+  div.className = 'card ' + esc(entry.kind) + (entry.kind === 'task_end' ? (entry.passed ? ' pass' : ' fail') : '');
+  if (entry.kind === 'step') {
+    const t = entry.timing || {};
+    div.innerHTML =
+      '<div class="head mono">' +
+        '<span class="n">#' + esc(entry.n) + '</span>' +
+        '<span class="act act-' + esc(entry.action) + '">' + esc(entry.action) + '</span>' +
+        (entry.target_text ? '<span class="tgt">' + esc(entry.target_text) + '</span>'
+                           : (entry.target && entry.target !== 'no_text_target' ? '<span class="tgt mono">' + esc(entry.target) + '</span>' : '')) +
+        '<span class="flag ' + (entry.changed ? 'changed-yes' : 'changed-no') + '">' +
+          (entry.changed ? 'changed' : 'no change') + '</span>' +
+      '</div>' +
+      (entry.typed ? '<div class="typed mono">typed: ' + esc(entry.typed) + '</div>' : '') +
+      (entry.reason ? '<div class="why">' + esc(entry.reason) + '</div>' : '') +
+      '<div class="facts mono">' +
+        '<span>perc ' + esc(t.perceive ?? 0) + 'ms</span>' +
+        '<span>dec ' + esc(t.decide ?? 0) + 'ms</span>' +
+        '<span>act ' + esc(t.act ?? 0) + 'ms</span>' +
+        '<span>set ' + esc(t.settle ?? 0) + 'ms</span>' +
+        (entry.tokens && entry.tokens.openai ? '<span>' + fmt(entry.tokens.openai) + ' tok</span>' :
+         entry.tokens && entry.tokens.ts_in ? '<span>' + fmt(entry.tokens.ts_in + entry.tokens.ts_out) + ' tok</span>' : '') +
+      '</div>' +
+      (entry.note && /identical|could not run/.test(entry.note) ? '<div class="note">' + esc(entry.note) + '</div>' : '');
+  } else if (entry.kind === 'task_start') {
+    div.innerHTML = '<div class="head mono"><span class="act act-click">task ' + esc(entry.index) + '/' + esc(entry.total) + '</span>' +
+                    '<span class="tgt">' + esc(entry.task) + '</span></div>';
+  } else if (entry.kind === 'task_end') {
+    div.innerHTML = '<div class="head mono"><span class="badge ' + (entry.passed ? 'pass' : 'fail') + '">' +
+                    (entry.passed ? 'PASS' : 'FAIL') + '</span><span class="tgt">' + esc(entry.task) + '</span></div>' +
+                    '<div class="facts mono"><span>' + esc(entry.reason) + '</span><span>' + esc(entry.steps) + ' steps</span>' +
+                    '<span>' + esc(entry.duration_s) + 's</span>' +
+                    (entry.openai_tokens ? '<span>' + fmt(entry.openai_tokens) + ' tok</span>' : '') + '</div>';
+  } else if (entry.kind === 'done' || entry.kind === 'blocked') {
+    div.innerHTML = '<div class="head mono"><span class="act act-' + esc(entry.kind) + '">' + esc(entry.kind) + '</span>' +
+                    '<span class="tgt">' + esc(entry.reason) + '</span></div>';
+  } else if (entry.kind === 'error') {
+    div.innerHTML = '<div class="head mono"><span class="act act-error">error</span><span class="tgt">' + esc(entry.message) + '</span></div>';
+  }
+  return div;
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function renderTimeline(timeline) {
+  const feed = $('feed');
+  if (timeline.length < seen) { feed.innerHTML = ''; seen = 0; }
+  for (let i = seen; i < timeline.length; i++) feed.appendChild(card(timeline[i]));
+  seen = timeline.length;
+  let guard = 200;
+  while (feed.scrollHeight > feed.clientHeight + 2 && feed.childElementCount > 1 && guard--) {
+    feed.removeChild(feed.firstChild);
+  }
+}
+
+function renderResults(results) {
+  const box = $('results');
+  if (!results.length) { box.innerHTML = '<div class="more">No verdict yet — run a task to see results here.</div>'; return; }
+  const shown = results.slice(-MAX_VERDICT_ROWS);
+  const hidden = results.length - shown.length;
+  box.innerHTML = (hidden > 0 ? '<div class="more">+' + hidden + ' earlier task' + (hidden > 1 ? 's' : '') + '</div>' : '') +
+    shown.map((r) =>
+      '<div class="vrow">' +
+        '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
+        '<span class="task">' + esc(r.task) + '</span>' +
+        '<span class="meta">' + esc(r.reason) + ' · ' + esc(r.steps) + ' steps · ' + esc(r.duration_s ?? '?') + 's</span>' +
+      '</div>'
+    ).join('');
+}
+
+function renderSummary(results, running) {
+  const total = results.length;
+  const passed = results.filter((r) => r.passed).length;
+  $('summary').innerHTML = total
+    ? '<b>' + passed + '/' + total + '</b> passing' + (running ? ' · running…' : '')
+    : 'waiting…';
+}
+
+function render(s) {
+  const st = $('status');
+  const mode = s.error ? 'failed' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : 'idle';
+  st.className = 'status ' + (mode === 'idle' ? '' : mode);
+  $('statusText').textContent = mode === 'running' ? 'running' : mode === 'passed' ? 'all passed' : mode === 'failed' ? 'failed' : 'idle';
+
+  $('taskChip').innerHTML = s.tasks.length
+    ? 'task <b>' + Math.max(1, Math.min(s.task_index, s.tasks.length)) + '/' + s.tasks.length + '</b>'
+    : 'no task';
+  const cur = s.current || {};
+  $('stepChip').innerHTML = 'step <b>' + (cur.n || 0) + '/' + s.max_steps + '</b>';
+  const secs = s.finished_at && s.started_at ? (s.finished_at - s.started_at)
+             : s.started_at ? (Date.now() / 1000 - s.started_at) : 0;
+  $('timeChip').innerHTML = secs.toFixed(1) + 's';
+  $('tokenChip').innerHTML = 'jev <b>' + fmt(s.tokens.input + s.tokens.output) + '</b> · openai <b>' + fmt(s.openai_tokens) + '</b>';
+  $('modelChip').innerHTML = esc(s.planner) + ' · <b>' + esc(s.planner_model) + '</b>';
+
+  $('frame').src = s.frame;
+  $('screenInfo').textContent = s.perception + ' perception';
+  const now = cur.action
+    ? cur.action + (cur.target_text ? ' → ' + cur.target_text : (cur.target && cur.target !== 'no_text_target') ? ' → ' + cur.target : '')
+    : (s.running ? 'thinking…' : 'idle');
+  $('nowAction').textContent = now;
+  $('nowWhy').textContent = cur.reason || '';
+  $('bar').style.width = (s.max_steps ? Math.min(100, ((cur.n || 0) / s.max_steps) * 100) : 0) + '%';
+
+  $('run').disabled = s.running;
+  $('stop').disabled = !s.running;
+
+  renderTimeline(s.timeline || []);
+  renderResults(s.results || []);
+  renderSummary(s.results || [], s.running);
+
+  const text = (s.log || []).join('\n');
+  const log = $('log');
+  if (log.textContent !== text) { log.textContent = text; log.scrollTop = log.scrollHeight; }
+}
+
+async function tick() {
+  try { render(await api('/api/state')); } catch (e) {}
+  setTimeout(tick, 1000);
 }
 
 $('run').onclick = async () => {
   const tasks = $('task').value.split('\n').map((t) => t.trim()).filter(Boolean);
-  if (!tasks.length) return;
+  if (!tasks.length) { $('task').focus(); return; }
+  seen = 0; $('feed').innerHTML = '';
   await api('/api/run', {tasks});
 };
 $('stop').onclick = () => api('/api/stop', {});
@@ -130,8 +355,10 @@ $('task').addEventListener('keydown', (e) => {
 });
 document.querySelectorAll('.presets button').forEach((b) => b.onclick = () => {
   $('task').value = b.dataset.task;
-  $('run').click();
+  $('task').focus();
 });
+$('rawBtn').onclick = () => $('rawOverlay').classList.add('show');
+$('rawClose').onclick = () => $('rawOverlay').classList.remove('show');
 
 tick();
 </script>

@@ -73,6 +73,12 @@ RUN ARCH=$(dpkg --print-architecture) \
        'Icon=/opt/firefox/browser/chrome/icons/default/default128.png' \
        > /usr/share/applications/firefox.desktop
 
+RUN mkdir -p /root/Documents /root/Downloads /root/projects && \
+  printf '%s\n' \
+    'Welcome to your TiVM sandbox.' \
+    'Documents, Downloads and projects are in this home folder.' \
+    > /root/Documents/README.txt
+
 RUN python3 -m venv --system-site-packages /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir fastapi uvicorn pillow requests
 

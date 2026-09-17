@@ -93,11 +93,22 @@ class Runner:
         self.ocr_skipped = False
         self._fallback_click = None
         self.openai_tokens = 0
+        self.timeline = []
+        self.current = {}
+        self.task_step = 0
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
         self.log_lines.append(f"[{stamp}] {message}")
         self.log_lines = self.log_lines[-300:]
+
+    def emit(self, kind, **fields):
+        entry = {"kind": kind, "at": time.strftime("%H:%M:%S")}
+        entry.update(fields)
+        self.timeline.append(entry)
+        self.timeline = self.timeline[-400:]
+        if kind == "step":
+            self.current = entry
 
     def start(self, tasks, max_steps=None):
         with self.lock:
@@ -127,6 +138,7 @@ class Runner:
         self.last_element = element
         self.last_label = f"task {self.task_index}: {action} -> {target}"
         self._fallback_click = None
+        self.last_typed = ""
 
         if action in ("click", "double_click"):
             point = None
@@ -148,14 +160,14 @@ class Runner:
             elif answers.get("point"):
                 point = tuple(answers["point"])
             if point is None:
-                if target == "no_text_target" or config.PLANNER == "openai":
+                if target == "no_text_target" and config.PLANNER != "openai":
                     cell = (answers.get("grid") or {}).get("choice") or "A1"
                     point = grid_point(cell)
                     self.log(f"no usable element target, using grid cell {cell}")
                 else:
-                    self.log(f"click requested but target {target!r} is not usable, waiting instead")
-                    actions.wait()
-                    return "wait (no usable click target)"
+                    self.log("no click target given; asking the planner to choose one")
+                    self.target_note = True
+                    return "no click target chosen"
             if action == "click":
                 actions.click(*point)
             else:
@@ -175,6 +187,7 @@ class Runner:
                 return "type skipped (already typed)"
             actions.type_text(remaining[0])
             self.typed.append(remaining[0])
+            self.last_typed = remaining[0]
             if config.TYPE_PRESSES_RETURN:
                 time.sleep(0.2)
                 actions.press_key("Return")
@@ -272,6 +285,7 @@ class Runner:
     def _settle(self, previous_thumb):
         last = previous_thumb
         stable = 0
+        time.sleep(config.SETTLE_MIN)
         started = time.time()
         while time.time() - started < config.SETTLE_TIMEOUT:
             time.sleep(config.SETTLE_POLL)
@@ -279,7 +293,7 @@ class Runner:
             current = vision.thumb(vision.RAW_PATH)
             if vision.diff_ratio(current, last) <= config.CHANGE_RATIO:
                 stable += 1
-                if stable >= 2:
+                if stable >= 3:
                     break
             else:
                 stable = 0
@@ -294,6 +308,7 @@ class Runner:
         low_conf = 0
         self.typed = []
         self.no_text_note = False
+        self.target_note = False
         self.stall = 0
         note = "This is the first step."
 
@@ -324,6 +339,7 @@ class Runner:
             remaining_text = [c for c in type_candidates(task) if c not in self.typed]
             started = time.perf_counter()
             step_openai = 0
+            plan_reason = ""
             if config.PLANNER == "openai":
                 plan, usage = openai_client.plan(
                     task,
@@ -353,7 +369,8 @@ class Runner:
                 blocked = 1.0 if plan.get("blocked") else 0.0
                 confidence = 1.0
                 step_in = step_out = 0
-                self.log(f"plan: {str(plan.get('reason', ''))[:120]}")
+                plan_reason = str(plan.get("reason") or "").strip()
+                self.log(f"plan: {plan_reason[:120]}")
             else:
                 result = ts.ask(
                     state, config.build_questions(task, elements, can_type=bool(remaining_text))
@@ -391,10 +408,12 @@ class Runner:
 
             if done >= config.DONE_THRESHOLD:
                 self.log("task complete according to Jev")
+                self.emit("done", n=step, action="done", reason=f"done={done:.2f}")
                 return {"task": task, "passed": True, "steps": step, "reason": f"complete (done={done:.2f})"}
 
             if blocked >= config.BLOCKED_THRESHOLD:
                 self.log(f"blocked (blocked={blocked:.2f}), stopping")
+                self.emit("blocked", n=step, action="blocked", reason=f"blocked={blocked:.2f}")
                 return {
                     "task": task,
                     "passed": False,
@@ -453,6 +472,7 @@ class Runner:
                 + (f" | openai {step_openai}" if step_openai else "")
             )
             self.no_text_note = False
+            self.target_note = False
 
             if screen_changed_after_action:
                 self.stall = 0
@@ -472,6 +492,11 @@ class Runner:
                     "The previous action could not run: there was no text available to type. "
                     "Pick a different action, or a target whose text already appears on screen."
                 )
+            elif self.target_note:
+                note = (
+                    "The previous action had no target. Set 'target' to one of the listed element ids, "
+                    "or give x/y pixel coordinates from the screenshot."
+                )
             elif low_conf > 0:
                 note = "The last decision had low confidence; pick an obvious, unambiguous target."
             elif repeat >= config.STUCK_REPEAT_LIMIT:
@@ -486,6 +511,30 @@ class Runner:
             else:
                 note = "The screen changed after the last action."
 
+            self.emit(
+                "step",
+                n=step,
+                action=action,
+                target=target,
+                target_text=(
+                    f'{self.last_element.get("role", "widget")} "{self.last_element.get("text", "")}"'
+                    if self.last_element and target not in ("", "no_text_target")
+                    else ""
+                ),
+                typed=self.last_typed,
+                reason=plan_reason,
+                outcome=outcome,
+                changed=screen_changed_after_action,
+                timing={
+                    "perceive": round(perceive_ms),
+                    "decide": round(decide_ms),
+                    "act": round(act_ms),
+                    "settle": round(settle_ms),
+                },
+                tokens={"ts_in": step_in, "ts_out": step_out, "openai": step_openai},
+                note=note,
+            )
+
         return {"task": task, "passed": False, "steps": self.max_steps, "reason": "step limit reached"}
 
     def _run(self):
@@ -496,6 +545,8 @@ class Runner:
                 self.task_index = index
                 self.task = task
                 self.log(f"--- task {index}/{len(self.tasks)}: {task}")
+                self.emit("task_start", index=index, total=len(self.tasks), task=task)
+                task_started = time.time()
                 tokens_before = (self.tokens_in, self.tokens_out)
                 openai_before = self.openai_tokens
 
@@ -511,13 +562,26 @@ class Runner:
                     "output": self.tokens_out - tokens_before[1],
                 }
                 result["openai_tokens"] = self.openai_tokens - openai_before
+                result["duration_s"] = round(time.time() - task_started, 1)
                 result["frame"] = vision.frame_data_url(element=self.last_element, label=self.last_label)
                 self.results.append(result)
+                self.emit(
+                    "task_end",
+                    index=index,
+                    task=task,
+                    passed=result["passed"],
+                    reason=result["reason"],
+                    steps=result["steps"],
+                    duration_s=result["duration_s"],
+                    tokens=result["tokens"],
+                    openai_tokens=result["openai_tokens"],
+                )
                 self.log(f"task {index} {'PASS' if result['passed'] else 'FAIL'}: {result['reason']}")
                 time.sleep(0.5)
         except Exception as e:
             self.error = str(e)
             self.log(f"fatal: {e}")
+            self.emit("error", message=str(e))
         finally:
             self.running = False
             self.finished_at = time.time()
@@ -539,6 +603,11 @@ class Runner:
                 "log": list(self.log_lines),
                 "last_label": self.last_label,
                 "results": [{k: v for k, v in r.items() if k != "frame"} for r in self.results],
+                "timeline": list(self.timeline),
+                "current": dict(self.current),
+                "planner": config.PLANNER,
+                "planner_model": config.OPENAI_PLANNER_MODEL if config.PLANNER == "openai" else config.MODEL,
+                "perception": config.PERCEPTION,
                 "tokens": {"input": self.tokens_in, "output": self.tokens_out},
                 "openai_tokens": self.openai_tokens,
                 "started_at": self.started_at,
