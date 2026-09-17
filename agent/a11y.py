@@ -61,12 +61,12 @@ def _value(node):
     try:
         text_iface = node.queryText()
         count = text_iface.characterCount
-        start = max(0, count - 240)
+        start = max(0, count - 700)
         text = text_iface.getText(start, count)
     except Exception:
         return ""
     text = (text or "").replace("\n", " | ").strip()
-    return text[-240:]
+    return text[-700:]
 
 
 def _invokable(node):

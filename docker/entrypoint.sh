@@ -25,6 +25,11 @@ startxfce4 >/tmp/xfce.log 2>&1 &
 sleep 2
 
 (
+  cd /app
+  /opt/venv/bin/python3 -m agent.firefox_warm >/tmp/firefox-warm.log 2>&1 || true
+) &
+
+(
   while true; do
     x11vnc -display "$DISPLAY" -auth "$AUTHFILE" -forever -shared -nopw -quiet -rfbport 5900 -o /tmp/x11vnc.log
     echo "x11vnc exited ($?), restarting in 1s" >>/tmp/x11vnc.log

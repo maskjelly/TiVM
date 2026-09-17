@@ -26,10 +26,14 @@ def type_candidates(task):
     urls = re.findall(r"https?://[^\s\"']+", task)
     install = re.search(r"\binstall\s+(?:the\s+)?(?:package\s+)?([A-Za-z0-9+_.-]+)", task, re.I)
     if install:
-        candidates.append(f"sudo apt-get install -y {install.group(1)}")
+        candidates.append(f"apt-get install -y {install.group(1)}")
+    cloned = set()
     if re.search(r"\b(?:clone|pull|checkout|fetch)\b", task, re.I):
-        candidates.extend(f"git clone {url}" for url in urls)
-    candidates.extend(urls)
+        for url in urls:
+            repo = url.rstrip("/").split("/")[-1].removesuffix(".git")
+            candidates.append(f"git clone {url} || git -C {repo} pull")
+            cloned.add(url)
+    candidates.extend(url for url in urls if url not in cloned)
     match = re.search(r"(?:type|write|search(?: the web)?(?: for)?|enter|look up)\s+(.+?)(?:[.,;]|$)", task, re.I)
     if match:
         candidates.append(match.group(1).strip())
@@ -42,7 +46,7 @@ def type_candidates(task):
 
 
 def build_state(task, elements, history, note, step, max_steps):
-    return {
+    state = {
         "task": task,
         "step": f"{step} of {max_steps}",
         "screen": (
@@ -54,6 +58,10 @@ def build_state(task, elements, history, note, step, max_steps):
         "recent_actions": history[-6:],
         "note": note,
     }
+    terminal_output = [e["value"] for e in elements if e.get("role") == "terminal" and e.get("value")]
+    if terminal_output:
+        state["terminal_output"] = [text[-600:] for text in terminal_output]
+    return state
 
 
 class Runner:
@@ -158,7 +166,6 @@ class Runner:
                 return "type skipped (no text found in task)"
             if not remaining:
                 self.log("all candidate texts already typed; nothing new to type")
-                self.no_text_note = True
                 return "type skipped (already typed)"
             actions.type_text(remaining[0])
             self.typed.append(remaining[0])
@@ -271,8 +278,11 @@ class Runner:
             )
 
             state = build_state(task, elements, history, note, step, self.max_steps)
+            remaining_text = [c for c in type_candidates(task) if c not in self.typed]
             started = time.perf_counter()
-            result = ts.ask(state, config.build_questions(task, elements))
+            result = ts.ask(
+                state, config.build_questions(task, elements, can_type=bool(remaining_text))
+            )
             decide_ms = (time.perf_counter() - started) * 1000
             answers = result["answers"]
             usage = result.get("usage", {})
@@ -302,7 +312,7 @@ class Runner:
 
             self.tokens_in += step_in
             self.tokens_out += step_out
-            self.log(f"done={done:.2f} action={action}({confidence:.2f}) target={target}")
+            self.log(f"done={done:.2f} blocked={blocked:.2f} action={action}({confidence:.2f}) target={target}")
 
             if done >= config.DONE_THRESHOLD:
                 self.log("task complete according to Jev")
@@ -375,11 +385,6 @@ class Runner:
                 )
             elif low_conf > 0:
                 note = "The last decision had low confidence; pick an obvious, unambiguous target."
-            elif action == "wait" and repeat >= 2:
-                note = (
-                    "Waiting has not changed the screen for several steps. If text was just typed, "
-                    "the app is waiting for Return. Otherwise pick a clickable element or a different action."
-                )
             elif repeat >= config.STUCK_REPEAT_LIMIT:
                 actions.press_key("Escape")
                 note = (

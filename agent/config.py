@@ -61,7 +61,7 @@ def grid_criteria():
     return cells
 
 
-def build_questions(task, elements):
+def build_questions(task, elements, can_type=True):
     target_criteria = {e["id"]: e["desc"] for e in elements}
     target_criteria["no_text_target"] = (
         "The click target has no listed text (an icon, image, blank area, or window border). "
@@ -106,11 +106,16 @@ def build_questions(task, elements):
             "criteria": {
                 "click": "Single left click on the target element (menus, buttons, items in lists).",
                 "double_click": "Double left click on the target element (desktop icons, files, folder icons).",
-                "type": "Type text into the currently focused field. The text comes from the TASK itself.",
+                **(
+                    {
+                        "type": "Type text into the currently focused field. The text comes from the TASK itself."
+                    }
+                    if can_type
+                    else {}
+                ),
                 "key": "Press a keyboard key (for example ctrl+l to focus the address bar).",
                 "scroll_down": "Scroll down inside the window at the target.",
                 "scroll_up": "Scroll up inside the window at the target.",
-                "wait": "Do nothing for one step because the screen is still loading.",
             },
         },
     }
