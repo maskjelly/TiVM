@@ -4,7 +4,7 @@
 ┌─ your machine ─────────────────────────────────────────────────────────────────┐
 │  colima VM (2 vCPU / 4 GB / 40 GB)          make status shows this             │
 │  ┌─ docker ────────────────────────────────────────────────────────────────┐   │
-│  │  tivm-desktop container (ephemeral, wiped on every start)               │   │
+│  │  dev box: tivm-desktop container (ephemeral, wiped on every start)      │   │
 │  │                                                                         │   │
 │  │   Xvfb :99 ──► XFCE desktop ──► x11vnc ──► websockify/noVNC  :6080      │   │
 │  │                    ▲                                                    │   │

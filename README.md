@@ -118,6 +118,21 @@ runs/<timestamp>/timeline.json       every step (action, reason, timings, tokens
 Changes are committed and pushed to `origin/main` (`git push`), never from inside the container —
 the only host-mounted paths are `./agent` (read-only code) and `./runs` (artifacts out).
 
+## Dev boxes
+
+One running sandbox = one **dev box**: a disposable Linux desktop (container inside the colima VM)
+that exists for a test run and nothing else. Every start is fresh, and you can kill boxes at any
+time without losing verdicts — artifacts live on the host in `runs/`.
+
+```sh
+make boxes     # list dev boxes: containers, VM, disk footprint
+make kill      # stop and remove all dev boxes (keeps images and ./runs artifacts)
+make nuke      # kill boxes + delete the VM: reclaims memory and disk (~4GB)
+```
+
+`make kill` frees the RAM immediately; `make nuke` also reclaims the VM disk, at the cost of a
+rebuild on the next `make vm && make up` (~6-8 min).
+
 ## What persists (and what is wiped)
 
 The sandbox is ephemeral by design: every `make up` starts a fresh machine.
@@ -132,7 +147,7 @@ Commands:
 
 ```sh
 make vm          # one-time: colima VM, 2 vCPU / 4 GB RAM / 40 GB disk (docker storage on it)
-make up          # always starts fresh: down + prune dangling layers + recreate
+make up          # always starts fresh: down + prune dangling layers + recreate a dev box
 make runs        # list exported run folders
 make wipe-runs   # delete all artifacts
 make clean       # down + remove dangling images and build cache (frees GBs)

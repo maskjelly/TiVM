@@ -3,6 +3,23 @@ vm:
 	@colima ssh -- lsblk | grep -E "vda|vdb" || true
 	@colima ssh -- df -h / | tail -1
 
+boxes:
+	@echo "--- dev boxes ---"
+	@docker ps -a --format '{{.Names}} | {{.Status}} | {{.Image}}' 2>/dev/null || echo "(no container runtime running)"
+	@echo "--- host ---"
+	@colima list 2>/dev/null || echo "(no colima)"
+	@du -sh ~/.colima/_lima 2>/dev/null || true
+
+kill:
+	docker compose down --remove-orphans >/dev/null 2>&1 || true
+	docker container prune -f >/dev/null 2>&1 || true
+	docker image prune -f >/dev/null 2>&1 || true
+	@echo "dev boxes removed; artifacts in ./runs kept"
+
+nuke: kill
+	colima delete -f
+	@echo "VM deleted: memory and storage reclaimed (next start: make vm && make up, ~6-8 min)"
+
 status:
 	@echo "--- VMs (colima) ---"
 	@colima list 2>/dev/null || echo "(no colima)"
