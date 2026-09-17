@@ -43,7 +43,7 @@ Measured on the demo task (open the text editor, type `"hello from Jev"`):
 
 A throwaway Ubuntu 24.04 dev box: `apt` (with package lists kept, so `apt-get install` works
 in-session), `git`, Python 3 + venv + pip, Node 24 + npm, Bun, Firefox (Mozilla build, a11y
-visible, first-run dialogs pre-seeded away), Epiphany, `gcc`/`make`/`pkg-config`/`libssl-dev`,
+visible; its one-time privacy notice is dismissed by the agent on first launch), Epiphany, `gcc`/`make`/`pkg-config`/`libssl-dev`,
 `curl`/`wget`/`git`/`jq`/`unzip`/`sudo`, XFCE desktop, tesseract, xdotool, at-spi. `make check`
 prints every version.
 
