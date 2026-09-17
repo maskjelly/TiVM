@@ -1,0 +1,20 @@
+name: tivm
+
+services:
+  desktop:
+    build:
+      context: ./docker
+    image: tivm-desktop:latest
+    container_name: tivm-desktop
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SCREEN_W: ${SCREEN_W:-1280}
+      SCREEN_H: ${SCREEN_H:-800}
+      DISPLAY: ":99"
+    ports:
+      - "6080:6080"
+      - "6081:6081"
+    volumes:
+      - ./agent:/app/agent:ro
+    shm_size: "512mb"

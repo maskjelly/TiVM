@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TiVM — Jev computer use</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #0b0d10; color: #d7dde5; }
+  header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+           padding: 14px 18px; border-bottom: 1px solid #1e232b; }
+  h1 { font-size: 15px; margin: 0 12px 0 0; letter-spacing: .06em; }
+  .pill { padding: 3px 10px; border-radius: 999px; font-size: 12px; background: #1a1f27; border: 1px solid #2a313c; }
+  .pill.on { background: #06281c; border-color: #0a5c3d; color: #4ade80; }
+  .pill.done { background: #0a2340; border-color: #14508a; color: #7cc4ff; }
+  .pill.fail { background: #2b0f13; border-color: #7f1d2b; color: #ff8f9b; }
+  a { color: #7cc4ff; }
+  main { display: grid; grid-template-columns: minmax(420px, 1.25fr) minmax(340px, 1fr);
+         gap: 14px; padding: 14px 18px 24px; }
+  .panel { border: 1px solid #1e232b; border-radius: 10px; background: #0f1217; overflow: hidden; }
+  .panel h2 { font-size: 12px; letter-spacing: .08em; color: #8b95a3; margin: 0;
+              padding: 10px 12px; border-bottom: 1px solid #1e232b; text-transform: uppercase; }
+  #frame { width: 100%; display: block; background: #000; }
+  #log { height: 380px; overflow: auto; padding: 10px 12px; white-space: pre-wrap; font-size: 12.5px; }
+  .controls { display: flex; gap: 8px; padding: 12px; flex-wrap: wrap; }
+  textarea { flex: 1; min-width: 220px; background: #0b0e12; border: 1px solid #2a313c;
+             color: #e6ebf1; border-radius: 8px; padding: 9px 11px; font: inherit; resize: vertical; }
+  button { background: #16202c; border: 1px solid #2a313c; color: #dbe4ee; border-radius: 8px;
+           padding: 9px 13px; font: inherit; cursor: pointer; }
+  button:hover { background: #1d2a39; }
+  button.primary { background: #0d3b2b; border-color: #15654a; color: #86efac; }
+  button.danger { background: #3b1218; border-color: #7f1d2b; color: #ffb3bd; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
+  .presets button { font-size: 12px; padding: 6px 10px; }
+  .meta { padding: 0 12px 12px; color: #8b95a3; font-size: 12px; }
+  #results { padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .row { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
+  .tag { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11px; }
+  .tag.pass { background: #06281c; color: #4ade80; border: 1px solid #0a5c3d; }
+  .tag.fail { background: #2b0f13; color: #ff8f9b; border: 1px solid #7f1d2b; }
+  .row .why { color: #8b95a3; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TIVM</h1>
+  <span id="status" class="pill">idle</span>
+  <span id="steps" class="pill">step 0</span>
+  <span id="tokens" class="pill">tokens 0</span>
+  <a href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">open desktop view</a>
+  <a href="/api/result" target="_blank">verdict json</a>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Live screen (green box = Jev's last choice)</h2>
+    <img id="frame" alt="linux desktop">
+    <div class="controls">
+      <textarea id="task" rows="2" placeholder='One test per line, e.g.&#10;Open the text editor (Mousepad) and type "hello from Jev"'></textarea>
+      <button id="run" class="primary">Run</button>
+      <button id="stop" class="danger">Stop</button>
+    </div>
+    <div class="presets">
+      <button data-task='Open the text editor (Mousepad) and type "hello from Jev"'>text editor + type</button>
+      <button data-task='Open the file manager and open the "Documents" folder'>open Documents</button>
+      <button data-task='Open the Web browser and search the web for "typesafe ai"'>web search</button>
+      <button data-task='Open the text editor (Mousepad) and type "hello from Jev"&#10;Open the file manager and open the "Documents" folder'>suite of 2</button>
+    </div>
+    <div class="meta" id="meta"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Verdict</h2>
+    <div id="results"></div>
+  </section>
+
+  <section class="panel" style="grid-column: 1 / -1;">
+    <h2>Decision log</h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function api(path, body) {
+  const res = await fetch(path, body ? {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  } : undefined);
+  return res.json();
+}
+
+async function tick() {
+  try {
+    const s = await api('/api/state');
+    const st = $('status');
+    st.textContent = s.error ? 'error' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : 'idle';
+    st.className = 'pill' + (s.error ? ' fail' : s.running ? ' on' : s.passed === true ? 'done' : s.passed === false ? 'fail' : '');
+    $('steps').textContent = 'task ' + s.task_index + '/' + s.tasks.length + ' · step ' + s.step;
+    $('tokens').textContent = 'tokens ' + (s.tokens.input + s.tokens.output);
+    $('frame').src = s.frame;
+    $('log').textContent = s.log.join('\n');
+    $('log').scrollTop = $('log').scrollHeight;
+    $('meta').textContent = s.task ? ('current: ' + s.task) : 'no task yet';
+    $('results').innerHTML = s.results.map((r) =>
+      '<div class="row"><span class="tag ' + (r.passed ? 'pass' : 'fail') + '">' +
+      (r.passed ? 'PASS' : 'FAIL') + '</span><span>' + escapeHtml(r.task) +
+      '</span><span class="why">' + escapeHtml(r.reason) + ' · ' + r.steps + ' steps</span></div>'
+    ).join('');
+  } catch (e) {}
+  setTimeout(tick, 1500);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+$('run').onclick = async () => {
+  const tasks = $('task').value.split('\n').map((t) => t.trim()).filter(Boolean);
+  if (!tasks.length) return;
+  await api('/api/run', {tasks});
+};
+$('stop').onclick = () => api('/api/stop', {});
+$('task').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('run').click();
+});
+document.querySelectorAll('.presets button').forEach((b) => b.onclick = () => {
+  $('task').value = b.dataset.task;
+  $('run').click();
+});
+
+tick();
+</script>
+</body>
+</html>
