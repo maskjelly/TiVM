@@ -9,23 +9,25 @@
     --bg: #0a0a0a;
     --panel: #0f0f0f;
     --panel-2: #141414;
+    --panel-3: #191919;
     --border: #262626;
     --border-2: #383838;
-    --text: #e5e5e5;
-    --dim: #8a8a8a;
-    --faint: #5c5c5c;
+    --text: #ececec;
+    --dim: #9a9a9a;
+    --faint: #666;
     --ok: #4ade80;
     --warn: #fbbf24;
     --err: #f87171;
-    --accent: #e5e5e5;
+    --blue: #7dd3fc;
+    --purple: #d8b4fe;
   }
-  * { box-sizing: border-box; border-radius: 0 !important; }
+  * { box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
   body {
     margin: 0;
-    font: 11.5px/1.35 ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font: 13px/1.45 ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
     background: var(--bg); color: var(--text);
-    display: grid; grid-template-rows: 28px 1fr;
+    display: grid; grid-template-rows: 38px 1fr;
   }
   a { color: inherit; text-decoration: none; }
   a:hover { text-decoration: underline; }
@@ -33,148 +35,159 @@
   .dim { color: var(--dim); }
   .faint { color: var(--faint); }
   .grow { flex: 1; min-height: 0; }
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--faint); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border-2); }
 
   header {
-    display: flex; align-items: center; gap: 12px; padding: 0 8px;
+    display: flex; align-items: center; gap: 16px; padding: 0 14px;
     background: var(--panel); border-bottom: 1px solid var(--border); white-space: nowrap;
   }
-  .brand { font-weight: 700; letter-spacing: 0.12em; }
-  .brand span { color: var(--faint); font-weight: 400; }
-  .status { display: inline-flex; align-items: center; gap: 5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10.5px; }
-  .status i { width: 6px; height: 6px; background: var(--faint); display: inline-block; }
-  .status.running { color: var(--accent); }
-  .status.running i { background: var(--accent); animation: blink 1s steps(2, start) infinite; }
+  .brand { font-weight: 700; letter-spacing: 0.14em; font-size: 13px; }
+  .brand span { color: var(--faint); font-weight: 400; font-size: 11px; }
+  .status { display: inline-flex; align-items: center; gap: 7px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em; font-size: 11px; }
+  .status i { width: 7px; height: 7px; background: var(--faint); display: inline-block; border-radius: 50%; }
+  .status.running { color: var(--text); }
+  .status.running i { background: var(--text); animation: pulse 1.1s ease-in-out infinite; }
   .status.passed { color: var(--ok); }
   .status.passed i { background: var(--ok); }
   .status.failed { color: var(--err); }
   .status.failed i { background: var(--err); }
-  @keyframes blink { 50% { opacity: 0; } }
-  .metrics { display: flex; gap: 12px; color: var(--faint); font-size: 10.5px; }
+  @keyframes pulse { 50% { opacity: 0.25; } }
+  .metrics { display: flex; gap: 16px; color: var(--faint); font-size: 11.5px; }
   .metrics b { color: var(--dim); font-weight: 400; }
   .ghost {
-    font: inherit; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--dim); background: transparent; border: 1px solid transparent; padding: 3px 6px; cursor: pointer;
+    font: inherit; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--dim); background: transparent; border: 1px solid var(--border); padding: 5px 10px; cursor: pointer;
   }
-  .ghost:hover { color: var(--text); border-color: var(--border-2); }
+  .ghost:hover { color: var(--text); border-color: var(--border-2); background: var(--panel-2); }
 
-  main { min-height: 0; display: grid; grid-template-columns: minmax(360px, 1fr) minmax(440px, 1.05fr);
+  main { min-height: 0; display: grid; grid-template-columns: minmax(540px, 1.55fr) minmax(400px, 1fr);
          gap: 1px; background: var(--border); }
   .stack { min-height: 0; display: flex; flex-direction: column; gap: 1px; background: var(--border); min-width: 0; }
   .card { background: var(--panel); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-  .card-h { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
-  .card-h h1, .card-h h2 { margin: 0; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
-  .card-h .meta { font-size: 10.5px; color: var(--faint); }
-  .pill { font-size: 10px; color: var(--dim); border: 1px solid var(--border-2); padding: 0 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .card-h { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--panel-2); }
+  .card-h h1, .card-h h2 { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim); }
+  .card-h .meta { font-size: 11.5px; color: var(--dim); }
+  .pill { font-size: 10.5px; color: var(--dim); border: 1px solid var(--border-2); padding: 1px 7px; text-transform: uppercase; letter-spacing: 0.07em; }
   .seg { display: inline-flex; border: 1px solid var(--border-2); }
-  .seg button { font: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
-                color: var(--dim); background: transparent; border: 0; border-left: 1px solid var(--border-2); padding: 2px 8px; cursor: pointer; }
+  .seg button { font: inherit; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em;
+                color: var(--dim); background: transparent; border: 0; border-left: 1px solid var(--border-2); padding: 3px 12px; cursor: pointer; }
   .seg button:first-child { border-left: 0; }
   .seg button.active { background: var(--text); color: var(--bg); font-weight: 700; }
 
+  /* ---------- screen (hero) ---------- */
   .screenwrap { flex: 1; min-height: 0; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
   .screenwrap img { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
-  .screenwrap .noframe { color: var(--faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; }
-  .progress { height: 1px; background: var(--border); }
-  .progress i { display: block; height: 100%; width: 0; background: var(--text); transition: width 0.2s linear; }
-  .nowbar { display: flex; align-items: baseline; gap: 8px; padding: 3px 6px; border-top: 1px solid var(--border);
-            white-space: nowrap; overflow: hidden; }
-  .nowbar .label { color: var(--faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
-  .nowbar b { font-weight: 700; }
-  .nowbar .why { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
-
-  .runform { padding: 6px; display: flex; flex-direction: column; gap: 5px; }
-  textarea {
-    width: 100%; height: 34px; resize: none; font: inherit; color: var(--text);
-    background: var(--bg); border: 1px solid var(--border-2); padding: 4px 5px;
+  .screenwrap .noframe { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; }
+  .onscreen {
+    position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 14px;
+    padding: 9px 14px; background: linear-gradient(rgba(0,0,0,0.78), rgba(0,0,0,0));
+    font-size: 12.5px; pointer-events: none;
   }
-  textarea:focus { outline: none; border-color: var(--text); }
-  textarea::placeholder { color: var(--faint); }
-  .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .row .hint { font-size: 10px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; }
+  .onscreen .live { display: inline-flex; align-items: center; gap: 6px; color: var(--err); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; }
+  .onscreen .live i { width: 7px; height: 7px; background: var(--err); border-radius: 50%; animation: pulse 1.1s ease-in-out infinite; }
+  .onscreen .task { color: #fff; font-weight: 600; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .onscreen .right { margin-left: auto; color: #cfcfcf; font-size: 11.5px; white-space: nowrap; }
+  .progress { height: 2px; background: var(--panel-3); }
+  .progress i { display: block; height: 100%; width: 0; background: var(--text); transition: width 0.2s linear; }
+  .nowbar { display: flex; align-items: baseline; gap: 10px; padding: 9px 14px; border-top: 1px solid var(--border); background: var(--panel-2); white-space: nowrap; overflow: hidden; }
+  .nowbar .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--faint); }
+  .nowbar b { font-size: 13.5px; font-weight: 700; }
+  .nowbar .why { color: var(--dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- composer ---------- */
+  .composer { padding: 12px 14px 13px; display: flex; flex-direction: column; gap: 9px; background: var(--panel); }
+  .composer .box { border: 1px solid var(--border-2); background: var(--bg); }
+  .composer textarea {
+    width: 100%; height: 62px; resize: none; font: inherit; font-size: 13.5px; line-height: 1.5;
+    color: var(--text); background: transparent; border: 0; padding: 10px 12px; display: block;
+  }
+  .composer textarea:focus { outline: none; }
+  .composer textarea::placeholder { color: var(--faint); }
+  .composer .box:focus-within { border-color: var(--text); }
+  .composer .foot { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-top: 1px solid var(--border); background: var(--panel-2); }
+  .composer .foot .hint { font-size: 11px; color: var(--faint); }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .presets button {
+    font: inherit; font-size: 11px; color: var(--dim); background: transparent;
+    border: 1px solid var(--border); padding: 3px 9px; cursor: pointer;
+  }
+  .presets button:hover { color: var(--text); border-color: var(--border-2); background: var(--panel-2); }
   button.primary, button.danger, button.plain {
-    font: inherit; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-    padding: 4px 10px; cursor: pointer; border: 1px solid var(--border-2); background: transparent; color: var(--text);
+    font: inherit; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 7px 16px; cursor: pointer; border: 1px solid var(--border-2); background: transparent; color: var(--text);
   }
   button.primary { background: var(--text); border-color: var(--text); color: var(--bg); }
   button.primary:hover { background: #fff; }
   button.danger { color: var(--err); border-color: var(--err); }
   button.danger:hover { background: var(--err); color: var(--bg); }
   button:disabled { opacity: 0.35; cursor: default; }
-  .presets { display: flex; gap: 4px; flex-wrap: wrap; }
-  .presets button {
-    font: inherit; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
-    color: var(--dim); background: transparent; border: 1px solid var(--border); padding: 2px 6px; cursor: pointer;
-  }
-  .presets button:hover { color: var(--text); border-color: var(--border-2); }
 
-  .list { max-height: 130px; overflow: auto; }
-  .item { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-top: 1px solid var(--border); }
+  /* ---------- verdict + activity ---------- */
+  .list { max-height: 168px; overflow: auto; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--border); }
   .item:first-child { border-top: 0; }
-  .item .text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .item .meta { font-size: 10.5px; color: var(--faint); white-space: nowrap; }
-  .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; border: 1px solid currentColor; padding: 0 4px; }
+  .item .text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  .item .meta { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+  .badge { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; border: 1px solid currentColor; padding: 1px 6px; }
   .badge.pass { color: var(--ok); }
   .badge.fail { color: var(--err); }
   .badge.open { color: var(--text); }
-  .empty { padding: 6px; color: var(--faint); font-size: 10.5px; }
+  .empty { padding: 12px; color: var(--faint); font-size: 12px; }
 
-  .strip { padding: 3px 6px; border-bottom: 1px solid var(--border); background: var(--bg);
-           font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .strip b { color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+  .strip { padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--panel-2);
+           font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .strip b { color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 10.5px; }
   #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
-  .ev { padding: 3px 6px; border-top: 1px solid var(--border); }
+  .ev { padding: 8px 12px; border-top: 1px solid var(--border); }
   .ev:first-child { border-top: 0; }
-  .ev .line1 { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
-  .ev .idx { color: var(--faint); min-width: 16px; font-variant-numeric: tabular-nums; }
-  .ev .act { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; }
-  .ev .act.click, .ev .act.double_click { color: #7dd3fc; }
+  .ev .line1 { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+  .ev .idx { color: var(--faint); min-width: 20px; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .ev .act { font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; font-size: 11.5px; }
+  .ev .act.click, .ev .act.double_click { color: var(--blue); }
   .ev .act.type { color: var(--ok); }
-  .ev .act.key { color: #d8b4fe; }
+  .ev .act.key { color: var(--purple); }
   .ev .act.done { color: var(--ok); }
   .ev .act.blocked, .ev .act.error { color: var(--err); }
-  .ev .target { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ev .flag { margin-left: auto; color: var(--faint); white-space: nowrap; font-size: 10px; }
-  .ev .sub { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ev .facts { color: var(--faint); font-size: 10px; display: flex; gap: 10px; font-variant-numeric: tabular-nums; }
+  .ev .target { font-size: 12.5px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .flag { margin-left: auto; color: var(--faint); white-space: nowrap; font-size: 11px; }
+  .ev .sub { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev .facts { color: var(--faint); font-size: 11px; display: flex; gap: 12px; font-variant-numeric: tabular-nums; margin-top: 2px; }
   .ev.task { background: var(--panel-2); }
-  .ev.task .task-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev.task .task-name { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   #runsBody { flex: 1; min-height: 0; overflow: auto; }
-  .runrow { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-top: 1px solid var(--border); cursor: pointer; }
+  .runrow { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--border); cursor: pointer; }
   .runrow:hover { background: var(--panel-2); }
-  .runrow .id { color: var(--faint); min-width: 92px; font-variant-numeric: tabular-nums; font-size: 10.5px; }
-  .runrow .text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .runrow .meta { color: var(--faint); white-space: nowrap; font-size: 10.5px; }
-  .detail { padding: 6px; }
-  .detail h3 { margin: 8px 0 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+  .runrow .id { color: var(--faint); min-width: 106px; font-variant-numeric: tabular-nums; font-size: 11.5px; }
+  .runrow .text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  .runrow .meta { color: var(--faint); white-space: nowrap; font-size: 11.5px; }
+  .detail { padding: 12px; }
+  .detail h3 { margin: 14px 0 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
   .detail h3:first-child { margin-top: 0; }
-  .detail .files a { display: inline-block; color: var(--text); margin: 0 10px 3px 0; text-decoration: underline; }
-  .detail .kv { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 3px; }
-  .steprow { display: flex; gap: 8px; padding: 2px 0; border-bottom: 1px solid var(--border); }
-  .steprow .n { color: var(--faint); min-width: 18px; font-variant-numeric: tabular-nums; }
-  .steprow .a { font-weight: 700; min-width: 66px; text-transform: uppercase; font-size: 10.5px; }
+  .detail .files a { display: inline-block; color: var(--text); margin: 0 12px 5px 0; text-decoration: underline; font-size: 12.5px; }
+  .detail .kv { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .steprow { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+  .steprow .n { color: var(--faint); min-width: 20px; font-variant-numeric: tabular-nums; }
+  .steprow .a { font-weight: 700; min-width: 78px; text-transform: uppercase; font-size: 11.5px; }
   .steprow .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
 
-  #rawOverlay { display: none; position: fixed; inset: 0; z-index: 40; background: var(--panel);
-                border: 1px solid var(--border-2); flex-direction: column; overflow: hidden; }
+  #rawOverlay { display: none; position: fixed; inset: 0; z-index: 40; background: var(--panel); flex-direction: column; overflow: hidden; }
   #rawOverlay.show { display: flex; }
-  #rawOverlay .card-h { padding: 3px 6px; }
-  #rawOverlay pre { flex: 1; min-height: 0; margin: 0; overflow: auto; padding: 6px; color: var(--dim); white-space: pre-wrap; }
+  #rawOverlay pre { flex: 1; min-height: 0; margin: 0; overflow: auto; padding: 12px; color: var(--dim); white-space: pre-wrap; font-size: 12.5px; }
 </style>
 </head>
 <body>
 <header>
   <div class="brand">TIVM <span id="verChip">v0.2.0</span></div>
   <div class="status" id="status"><i></i><span id="statusText">idle</span></div>
-  <div class="dim" id="taskChip">no task</div>
   <div class="spacer"></div>
   <div class="metrics" id="sysChip"></div>
-  <a class="ghost" href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">desktop</a>
-  <a class="ghost" href="/api/result" target="_blank">json</a>
-  <button class="ghost" id="rawBtn">log</button>
+  <a class="ghost" href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">Desktop</a>
+  <a class="ghost" href="/api/result" target="_blank">JSON</a>
+  <button class="ghost" id="rawBtn">Log</button>
 </header>
 
 <main>
@@ -188,7 +201,15 @@
         <span class="meta" id="timeChip">0.0s</span>
         <span class="meta" id="tokenChip">0 tok</span>
       </div>
-      <div class="screenwrap"><span class="noframe" id="noFrame">awaiting frame…</span><img id="frame" alt=""></div>
+      <div class="screenwrap">
+        <span class="noframe" id="noFrame">awaiting frame…</span>
+        <img id="frame" alt="">
+        <div class="onscreen">
+          <span class="live"><i></i>LIVE</span>
+          <span class="task" id="overlayTask">no task running</span>
+          <span class="right" id="overlayRight"></span>
+        </div>
+      </div>
       <div class="progress"><i id="bar"></i></div>
       <div class="nowbar">
         <span class="label">Now</span>
@@ -198,26 +219,23 @@
     </article>
 
     <article class="card" style="flex:0 0 auto;">
-      <div class="runform">
-        <textarea id="task" placeholder="one test per line — e.g. Clone https://github.com/owner/repo and show its files"></textarea>
-        <div class="row">
-          <button class="primary" id="run">Run tests</button>
-          <button class="danger" id="stop" disabled>Stop</button>
-          <span class="hint">one task per line · ⌘/Ctrl+Enter</span>
-        </div>
-        <div class="presets">
-          <button data-task='Open a terminal and run "uname -a && node -v && bun -v && git --version"'>toolchain</button>
-          <button data-task='Open the file manager and open the "Documents" folder'>documents</button>
-          <button data-task='Clone https://github.com/maskjelly/whiteye.in and show its files'>clone repo</button>
-          <button data-task='Open the Web browser and go to example.com'>browse</button>
+      <div class="composer">
+        <div class="box">
+          <textarea id="task" placeholder="Describe what to verify — e.g. Clone https://github.com/owner/repo, install its dependencies and run the tests"></textarea>
+          <div class="foot">
+            <div class="presets">
+              <button data-task='Open a terminal and run "uname -a && node -v && bun -v && git --version"'>toolchain</button>
+              <button data-task='Open the file manager and open the "Documents" folder'>documents</button>
+              <button data-task='Clone https://github.com/maskjelly/whiteye.in and show its files'>clone repo</button>
+              <button data-task='Open the Web browser and go to example.com'>browse</button>
+            </div>
+            <span class="spacer"></span>
+            <span class="hint">one task per line · ⌘/Ctrl+Enter</span>
+            <button class="primary" id="run">Run tests</button>
+            <button class="danger" id="stop" disabled>Stop</button>
+          </div>
         </div>
       </div>
-      <div class="card-h" style="border-top:1px solid var(--border); border-bottom:0;">
-        <h2>Verdict</h2>
-        <span class="spacer"></span>
-        <span class="meta" id="summary">waiting…</span>
-      </div>
-      <div class="list" id="results"></div>
     </article>
   </div>
 
@@ -237,11 +255,20 @@
         <div id="runsBody"></div>
       </div>
     </article>
+
+    <article class="card" style="flex:0 0 auto;">
+      <div class="card-h">
+        <h2>Verdict</h2>
+        <span class="spacer"></span>
+        <span class="meta" id="summary">waiting…</span>
+      </div>
+      <div class="list" id="results"></div>
+    </article>
   </div>
 </main>
 
 <div id="rawOverlay">
-  <div class="card-h"><h1>Raw log</h1><span class="spacer"></span><button class="ghost" id="rawClose">close</button></div>
+  <div class="card-h"><h1>Raw log</h1><span class="spacer"></span><button class="ghost" id="rawClose">Close</button></div>
   <pre id="log"></pre>
 </div>
 
@@ -284,9 +311,8 @@ function eventRow(e) {
                        : (e.target && e.target !== 'no_text_target' ? '<span class="target">' + esc(e.target) + '</span>' : '')) +
         '<span class="flag">' + (e.changed ? 'changed' : 'no change') + '</span>' +
       '</div>' +
-      '<div class="line1"><span class="sub">' +
-        (e.typed ? 'typed: ' + esc(e.typed) + ' — ' : '') + (e.reason ? esc(e.reason) : '') +
-      '</span></div>' +
+      (e.typed ? '<div class="sub">typed: ' + esc(e.typed) + '</div>' : '') +
+      (e.reason ? '<div class="sub">' + esc(e.reason) + '</div>' : '') +
       '<div class="facts">' +
         '<span>perceive ' + secs(t.perceive || 0) + '</span>' +
         '<span>decide ' + secs(t.decide || 0) + '</span>' +
@@ -347,16 +373,17 @@ function render(s) {
   const mode = s.error ? 'failed' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : '';
   st.className = 'status' + (mode ? ' ' + mode : '');
   $('statusText').textContent = mode === 'running' ? 'running' : mode === 'passed' ? 'passed' : mode === 'failed' ? 'failed' : 'idle';
-  $('taskChip').textContent = s.tasks.length
-    ? 'task ' + Math.max(1, Math.min(s.task_index, s.tasks.length)) + '/' + s.tasks.length
-    : 'no task';
   const cur = s.current || {};
   const secsTotal = s.finished_at && s.started_at ? (s.finished_at - s.started_at) : s.started_at ? (Date.now() / 1000 - s.started_at) : 0;
+
+  if (s.frame) { $('frame').src = s.frame; $('frame').style.display = 'block'; $('noFrame').style.display = 'none'; }
+  const taskText = s.tasks.length ? s.tasks[Math.max(0, s.task_index - 1)] : '';
+  $('overlayTask').textContent = taskText ? ('Task ' + Math.max(1, s.task_index) + '/' + s.tasks.length + ' · ' + taskText) : (s.running ? 'thinking…' : 'no task running');
+  $('overlayRight').textContent = 'step ' + (cur.n || 0) + (s.max_steps ? '/' + s.max_steps : '') + ' · ' + secsTotal.toFixed(1) + 's';
+  $('screenInfo').textContent = s.planner_model;
   $('stepChip').textContent = 'step ' + (cur.n || 0) + (s.max_steps ? '/' + s.max_steps : '');
   $('timeChip').textContent = secsTotal.toFixed(1) + 's';
   $('tokenChip').textContent = fmt(s.tokens.input + s.tokens.output) + 'j ' + fmt(s.openai_tokens) + 'o';
-  if (s.frame) { $('frame').src = s.frame; $('frame').style.display = 'block'; $('noFrame').style.display = 'none'; }
-  $('screenInfo').textContent = s.planner_model;
   $('nowAction').textContent = cur.action
     ? cur.action + (cur.target_text ? ' → ' + cur.target_text : '')
     : (s.running ? 'thinking' : 'idle');
@@ -367,12 +394,12 @@ function render(s) {
   renderTimeline(s.timeline || []);
   renderResults(s.results || []);
   $('summary').textContent = s.results.length
-    ? s.results.filter((r) => r.passed).length + '/' + s.results.length + ' pass' + (s.running ? '…' : '')
+    ? s.results.filter((r) => r.passed).length + '/' + s.results.length + ' passing' + (s.running ? '…' : '')
     : 'waiting…';
   const plan = s.plan || [], mem = s.memory || '';
   $('planStrip').innerHTML = plan.length
-    ? '<b>plan</b> ' + plan.map(esc).join(' → ') + (mem ? '  ·  <b>mem</b> ' + esc(mem) : '')
-    : 'no plan';
+    ? '<b>Plan</b> ' + plan.map(esc).join(' → ') + (mem ? '  ·  <b>Memory</b> ' + esc(mem) : '')
+    : 'No plan yet';
   const text = (s.log || []).join('\n');
   if ($('log').textContent !== text) { $('log').textContent = text; $('log').scrollTop = $('log').scrollHeight; }
 }
@@ -390,7 +417,7 @@ async function renderRuns() {
   const body = $('runsBody');
   try {
     const data = await api('/api/runs');
-    $('runsStrip').innerHTML = '<b>' + data.runs.length + '</b> runs';
+    $('runsStrip').innerHTML = '<b>' + data.runs.length + ' runs</b> exported to runs/';
     if (!data.runs.length) {
       body.innerHTML = '<div class="empty">no runs on disk</div>';
       return;
@@ -400,7 +427,7 @@ async function renderRuns() {
         '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
         '<span class="id">' + esc(r.id) + '</span>' +
         '<span class="text">' + esc((r.tasks[0] || {}).task || '') + (r.tasks.length > 1 ? ' +' + (r.tasks.length - 1) : '') + '</span>' +
-        '<span class="meta">' + esc(r.duration_s ?? '?') + 's ' + fmt((r.tokens && (r.tokens.input + r.tokens.output)) + (r.openai_tokens || 0)) + 't</span>' +
+        '<span class="meta">' + esc(r.duration_s ?? '?') + 's ' + fmt((r.tokens && (r.tokens.input + r.tokens.output)) + (r.openai_tokens || 0)) + ' tok</span>' +
       '</div>').join('');
     body.querySelectorAll('.runrow').forEach((el) => el.onclick = () => showRun(el.dataset.id));
   } catch (e) {}
@@ -414,19 +441,19 @@ async function showRun(id) {
     const s = d.summary || {};
     const tasks = (s.tasks || []).map((t) =>
       '<div class="item"><span class="badge ' + (t.passed ? 'pass' : 'fail') + '">' + (t.passed ? 'PASS' : 'FAIL') + '</span>' +
-      '<span class="text">' + esc(t.task) + '</span><span class="meta">' + esc(t.steps) + ' steps ' + esc(t.duration_s ?? '?') + 's</span></div>').join('');
+      '<span class="text">' + esc(t.task) + '</span><span class="meta">' + esc(t.steps) + ' st · ' + esc(t.duration_s ?? '?') + 's</span></div>').join('');
     const files = (d.files || []).map((f) => '<a href="' + esc(f.url) + '" target="_blank">' + esc(f.name) + '</a>').join('');
     const steps = (d.timeline || []).filter((t) => t.kind === 'step').map((t) =>
       '<div class="steprow"><span class="n">' + esc(t.n) + '</span><span class="a">' + esc(t.action) + '</span>' +
       '<span class="t">' + esc((t.reason || t.target_text || '').slice(0, 90)) + '</span></div>').join('');
     body.innerHTML =
       '<div class="detail">' +
-        '<div class="kv"><button class="plain" id="runsBack">back</button>' +
+        '<div class="kv"><button class="plain" id="runsBack">Back</button>' +
         '<span class="badge ' + (s.passed ? 'pass' : 'fail') + '">' + (s.passed ? 'PASS' : 'FAIL') + '</span>' +
         '<span class="meta dim">' + esc(s.duration_s ?? '?') + 's · ' + fmt((s.tokens && (s.tokens.input + s.tokens.output)) || 0) + 'j ' + fmt(s.openai_tokens) + 'o</span></div>' +
-        '<h3>tasks</h3>' + tasks +
-        '<h3>artifacts</h3><div class="files">' + files + '</div>' +
-        '<h3>steps</h3>' + steps +
+        '<h3>Tasks</h3>' + tasks +
+        '<h3>Artifacts</h3><div class="files">' + files + '</div>' +
+        '<h3>Steps</h3>' + steps +
       '</div>';
     $('runsBack').onclick = () => renderRuns();
   } catch (e) {
