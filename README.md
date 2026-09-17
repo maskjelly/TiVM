@@ -15,6 +15,10 @@ screenshots are exported before teardown.
 *Control panel: live screen with the chosen target boxed, the orchestrator's plan/memory strip,
 per-step timeline (action, reason, self-check, timings, tokens) and per-task verdicts.*
 
+![Run history](docs/runs.png)
+*Run history: every completed suite is exported to `runs/<id>/` and can be reopened here with its
+timeline, verdicts, token usage and artifacts.*
+
 ## Quick start
 
 ```sh
@@ -30,7 +34,9 @@ Type one task per line in the panel and hit **Run tests**; each line is a test c
 PASS/FAIL verdict. Nothing runs until you trigger it. Stop with `make down`.
 
 Notes: the TypeSafe org behind `TYPESAFE_API_KEY` needs credits (otherwise every Jev step returns
-HTTP 402). `OPENAI_API_KEY` is only needed for the default OpenAI planner.
+HTTP 402). `OPENAI_API_KEY` is only needed for the default OpenAI planner. `make status` lists the
+VM, container, images and disk usage. Set `TIVM_TOKEN` to require a bearer token on
+`/api/run` and `/api/stop` (the panel prompts for it once).
 
 ## Perception: the screen becomes text
 
@@ -144,8 +150,10 @@ agent/vision.py    capture, OCR fallback, pixel-diff thumbs, annotated frames
 agent/config.py    every question + threshold, single file for review
 agent/ts.py        TypeSafe HTTP client (retries on 429/529)
 agent/actions.py   xdotool wrappers (mouse/keyboard fallback path)
-agent/loop.py      observe → ask → act loop, suite runner, verdicts
-agent/server.py    FastAPI control panel
+agent/loop.py      observe → ask → act loop, suite runner, verdicts, artifacts
+agent/server.py    FastAPI control panel + run history + artifact mount
+docs/              ARCHITECTURE.md (module map, API, env vars), screenshots
+CONTRIBUTING.md    setup, conventions, how to test changes
 ```
 
 ## Prior art

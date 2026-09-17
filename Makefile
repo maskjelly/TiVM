@@ -3,6 +3,16 @@ vm:
 	@colima ssh -- lsblk | grep -E "vda|vdb" || true
 	@colima ssh -- df -h / | tail -1
 
+status:
+	@echo "--- VMs (colima) ---"
+	@colima list 2>/dev/null || echo "(no colima)"
+	@echo "--- containers ---"
+	@docker ps -a --format '{{.Names}} | {{.Status}} | {{.Ports}}' 2>/dev/null || true
+	@echo "--- images ---"
+	@docker images --format '{{.Repository}}:{{.Tag}} | {{.Size}}' 2>/dev/null || true
+	@echo "--- disk ---"
+	@docker system df 2>/dev/null || true
+
 up:
 	mkdir -p runs
 	docker compose down --remove-orphans >/dev/null 2>&1 || true

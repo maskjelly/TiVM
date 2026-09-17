@@ -1,5 +1,8 @@
 import os
 
+VERSION = "0.2.0"
+TOKEN = os.environ.get("TIVM_TOKEN", "")
+
 MODEL = os.environ.get("TYPESAFE_MODEL", "jev-latest")
 API_URL = os.environ.get("TYPESAFE_API_URL", "https://api.typesafe.ai/v1/systemone")
 API_KEY = os.environ.get("TYPESAFE_API_KEY", "")

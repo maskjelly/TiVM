@@ -25,22 +25,15 @@
   body {
     margin: 0;
     font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display: grid;
-    grid-template-rows: auto 1fr;
-    gap: 0;
+    background: var(--bg); color: var(--text);
+    display: grid; grid-template-rows: auto 1fr;
   }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
   a { color: var(--blue); text-decoration: none; }
   a:hover { text-decoration: underline; }
 
-  header {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    padding: 9px 16px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-  }
+  header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 14px;
+           border-bottom: 1px solid var(--border); background: var(--panel); }
   .brand { font-weight: 650; letter-spacing: 0.14em; font-size: 12.5px; }
   .brand span { color: var(--accent); }
   .status { display: inline-flex; align-items: center; gap: 7px; padding: 3px 11px; border-radius: 999px;
@@ -53,29 +46,29 @@
   .status.failed { border-color: #5f1f2a; color: var(--red); }
   .status.failed .dot { background: var(--red); }
   @keyframes pulse { 50% { opacity: 0.25; } }
-  .chip { padding: 3px 10px; border-radius: 8px; font-size: 12px; background: var(--panel-2);
+  .chip { padding: 3px 9px; border-radius: 8px; font-size: 11.5px; background: var(--panel-2);
           border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
   .chip b { color: var(--text); font-weight: 560; }
   .chip.link { cursor: pointer; }
   .spacer { flex: 1; }
 
-  main {
-    min-height: 0; display: grid; gap: 14px; padding: 12px 16px 14px;
-    grid-template-columns: minmax(360px, 1.02fr) minmax(420px, 1fr);
-  }
+  main { min-height: 0; display: grid; gap: 12px; padding: 12px 14px 14px;
+         grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.05fr); }
   .col { min-height: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  section.panel {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-    overflow: hidden; display: flex; flex-direction: column; min-height: 0;
-  }
+  section.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+                  overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
   .panel h2 { margin: 0; padding: 8px 13px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
               color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border);
               background: var(--panel-2); display: flex; gap: 10px; align-items: center; }
   .panel h2 .right { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
 
+  .tabs { display: flex; gap: 4px; margin-left: auto; }
+  .tabs button { padding: 2px 10px; border-radius: 7px; font-size: 11px; font-weight: 600;
+                 background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; }
+  .tabs button.active { background: var(--panel); border-color: var(--border); color: var(--text); }
+
   .screenwrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #05070a; }
   .screenwrap img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
-
   .nowbar { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 8px 13px;
             border-top: 1px solid var(--border); background: var(--panel-2); }
   .nowbar .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -106,14 +99,17 @@
   .badge { flex: 0 0 auto; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; letter-spacing: 0.03em; }
   .badge.pass { background: var(--accent-dim); color: var(--accent); border: 1px solid #1f7a4a; }
   .badge.fail { background: var(--red-dim); color: var(--red); border: 1px solid #6b2330; }
+  .badge.run { background: #1a2740; color: var(--blue); border: 1px solid #2b4a75; }
   .more { padding: 5px 12px; color: var(--muted); font-size: 11.5px; }
 
-  #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; justify-content: flex-end; }
   .planstrip { padding: 6px 13px; border-bottom: 1px solid var(--border); background: var(--panel-2);
                color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .planstrip b { color: var(--text); font-weight: 560; }
+
+  #feed { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px;
+          padding: 10px 12px; justify-content: flex-end; }
   .card { border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; background: var(--panel-2); flex: 0 0 auto; }
-  .card .head { display: flex; gap: 7px; align-items: center; flex-wrap: nowrap; min-width: 0; }
+  .card .head { display: flex; gap: 7px; align-items: center; min-width: 0; }
   .card .n { color: var(--muted); font-size: 11.5px; min-width: 24px; }
   .card .act { font-weight: 650; font-size: 12px; letter-spacing: 0.03em; }
   .card .tgt { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -134,11 +130,21 @@
   .card.task_end.fail { border-color: #6b2330; background: #221317; }
   .card.error { border-color: #6b2330; background: #221317; }
 
-  #rawOverlay {
-    display: none; position: fixed; inset: 7vh 8vw; z-index: 50;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
-    flex-direction: column; box-shadow: 0 18px 60px rgba(0,0,0,0.5);
-  }
+  #runsView { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  .runrow { display: flex; gap: 9px; align-items: center; padding: 7px 12px; border-bottom: 1px solid var(--border);
+            cursor: pointer; min-width: 0; }
+  .runrow:hover { background: var(--panel-2); }
+  .runrow .id { color: var(--muted); font-size: 11.5px; min-width: 96px; }
+  .runrow .task { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .runrow .meta { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .rundetail { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px; }
+  .rundetail .kv { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .rundetail .files a { display: inline-block; margin: 2px 8px 2px 0; font-size: 11.5px; }
+  .rundetail h3 { margin: 10px 0 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+  #rawOverlay { display: none; position: fixed; inset: 7vh 8vw; z-index: 50; background: var(--panel);
+                border: 1px solid var(--border); border-radius: 12px; overflow: hidden; flex-direction: column;
+                box-shadow: 0 18px 60px rgba(0,0,0,0.5); }
   #rawOverlay.show { display: flex; }
   #rawOverlay .head { display: flex; align-items: center; gap: 10px; padding: 9px 13px;
                       border-bottom: 1px solid var(--border); background: var(--panel-2); }
@@ -151,10 +157,11 @@
   <div class="brand">TIVM<span>.</span></div>
   <div id="status" class="status"><span class="dot"></span><span id="statusText">idle</span></div>
   <div class="chip" id="taskChip">no task</div>
-  <div class="chip" id="stepChip">step 0/0</div>
+  <div class="chip" id="stepChip">step 0</div>
   <div class="chip" id="timeChip">0.0s</div>
-  <div class="chip" id="tokenChip">tokens 0</div>
+  <div class="chip" id="tokenChip">jev 0 · openai 0</div>
   <div class="chip" id="modelChip">planner —</div>
+  <div class="chip" id="sysChip">—</div>
   <div class="spacer"></div>
   <a class="chip" href="http://localhost:6080/vnc.html?autoconnect=1&resize=scale" target="_blank">desktop ↗</a>
   <a class="chip" href="/api/result" target="_blank">json ↗</a>
@@ -190,18 +197,29 @@
         </div>
       </div>
     </section>
-  </div>
 
-  <div class="col">
     <section class="panel" id="verdict" style="flex:0 0 auto;">
       <h2>Verdict <span class="right" id="summary"></span></h2>
       <div id="results"></div>
     </section>
+  </div>
 
+  <div class="col">
     <section class="panel" style="flex:1; min-height:0;">
-      <h2>What the agent is doing</h2>
-      <div class="planstrip" id="planStrip">no plan yet</div>
-      <div id="feed"></div>
+      <h2>Activity
+        <span class="tabs">
+          <button id="tabLive" class="active">live</button>
+          <button id="tabRuns">runs</button>
+        </span>
+      </h2>
+      <div id="liveView" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+        <div class="planstrip" id="planStrip">no plan yet</div>
+        <div id="feed"></div>
+      </div>
+      <div id="runsView" style="display:none;">
+        <div class="planstrip" id="runsStrip">recent runs on disk</div>
+        <div class="rundetail" id="runsBody"></div>
+      </div>
     </section>
   </div>
 </main>
@@ -219,11 +237,20 @@ const fmt = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n ?? 0));
 const MAX_VERDICT_ROWS = 6;
 
 let seen = 0;
+let tab = 'live';
+let token = localStorage.getItem('tivm_token') || '';
+let runsLoaded = 0;
 
-async function api(path, body) {
-  const res = await fetch(path, body ? {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body),
-  } : undefined);
+async function api(path, body, retry = true) {
+  const headers = {'Content-Type': 'application/json'};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(path, body ? {method: 'POST', headers, body: JSON.stringify(body)}
+                                     : {headers: token ? {'Authorization': 'Bearer ' + token} : {}});
+  if (res.status === 401 && retry) {
+    const t = prompt('Access token (TIVM_TOKEN):');
+    if (t) { token = t; localStorage.setItem('tivm_token', t); return api(path, body, false); }
+  }
+  if (!res.ok) throw new Error(res.status);
   return res.json();
 }
 
@@ -238,17 +265,14 @@ function card(entry) {
         '<span class="act act-' + esc(entry.action) + '">' + esc(entry.action) + '</span>' +
         (entry.target_text ? '<span class="tgt">' + esc(entry.target_text) + '</span>'
                            : (entry.target && entry.target !== 'no_text_target' ? '<span class="tgt mono">' + esc(entry.target) + '</span>' : '')) +
-        '<span class="flag ' + (entry.changed ? 'changed-yes' : 'changed-no') + '">' +
-          (entry.changed ? 'changed' : 'no change') + '</span>' +
+        '<span class="flag ' + (entry.changed ? 'changed-yes' : 'changed-no') + '">' + (entry.changed ? 'changed' : 'no change') + '</span>' +
       '</div>' +
       (entry.typed ? '<div class="typed mono">typed: ' + esc(entry.typed) + '</div>' : '') +
       (entry.reason ? '<div class="why">' + esc(entry.reason) + '</div>' : '') +
       (entry.check ? '<div class="why">check: ' + esc(entry.check) + '</div>' : '') +
       '<div class="facts mono">' +
-        '<span>perc ' + esc(t.perceive ?? 0) + 'ms</span>' +
-        '<span>dec ' + esc(t.decide ?? 0) + 'ms</span>' +
-        '<span>act ' + esc(t.act ?? 0) + 'ms</span>' +
-        '<span>set ' + esc(t.settle ?? 0) + 'ms</span>' +
+        '<span>perc ' + esc(t.perceive ?? 0) + 'ms</span><span>dec ' + esc(t.decide ?? 0) + 'ms</span>' +
+        '<span>act ' + esc(t.act ?? 0) + 'ms</span><span>set ' + esc(t.settle ?? 0) + 'ms</span>' +
         (entry.tokens && entry.tokens.openai ? '<span>' + fmt(entry.tokens.openai) + ' tok</span>' :
          entry.tokens && entry.tokens.ts_in ? '<span>' + fmt(entry.tokens.ts_in + entry.tokens.ts_out) + ' tok</span>' : '') +
       '</div>' +
@@ -260,8 +284,7 @@ function card(entry) {
     div.innerHTML = '<div class="head mono"><span class="badge ' + (entry.passed ? 'pass' : 'fail') + '">' +
                     (entry.passed ? 'PASS' : 'FAIL') + '</span><span class="tgt">' + esc(entry.task) + '</span></div>' +
                     '<div class="facts mono"><span>' + esc(entry.reason) + '</span><span>' + esc(entry.steps) + ' steps</span>' +
-                    '<span>' + esc(entry.duration_s) + 's</span>' +
-                    (entry.openai_tokens ? '<span>' + fmt(entry.openai_tokens) + ' tok</span>' : '') + '</div>';
+                    '<span>' + esc(entry.duration_s) + 's</span></div>';
   } else if (entry.kind === 'done' || entry.kind === 'blocked') {
     div.innerHTML = '<div class="head mono"><span class="act act-' + esc(entry.kind) + '">' + esc(entry.kind) + '</span>' +
                     '<span class="tgt">' + esc(entry.reason) + '</span></div>';
@@ -286,23 +309,13 @@ function renderResults(results) {
   const box = $('results');
   if (!results.length) { box.innerHTML = '<div class="more">No verdict yet — run a task to see results here.</div>'; return; }
   const shown = results.slice(-MAX_VERDICT_ROWS);
-  const hidden = results.length - shown.length;
-  box.innerHTML = (hidden > 0 ? '<div class="more">+' + hidden + ' earlier task' + (hidden > 1 ? 's' : '') + '</div>' : '') +
-    shown.map((r) =>
-      '<div class="vrow">' +
-        '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
-        '<span class="task">' + esc(r.task) + '</span>' +
-        '<span class="meta">' + esc(r.reason) + ' · ' + esc(r.steps) + ' steps · ' + esc(r.duration_s ?? '?') + 's</span>' +
-      '</div>'
-    ).join('');
-}
-
-function renderSummary(results, running) {
-  const total = results.length;
-  const passed = results.filter((r) => r.passed).length;
-  $('summary').innerHTML = total
-    ? '<b>' + passed + '/' + total + '</b> passing' + (running ? ' · running…' : '')
-    : 'waiting…';
+  box.innerHTML = results.length > shown.length ? '<div class="more">+' + (results.length - shown.length) + ' earlier tasks</div>' : '';
+  box.innerHTML += shown.map((r) =>
+    '<div class="vrow">' +
+      '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
+      '<span class="task">' + esc(r.task) + '</span>' +
+      '<span class="meta">' + esc(r.reason) + ' · ' + esc(r.steps) + ' steps · ' + esc(r.duration_s ?? '?') + 's</span>' +
+    '</div>').join('');
 }
 
 function render(s) {
@@ -310,67 +323,125 @@ function render(s) {
   const mode = s.error ? 'failed' : s.running ? 'running' : s.passed === true ? 'passed' : s.passed === false ? 'failed' : 'idle';
   st.className = 'status ' + (mode === 'idle' ? '' : mode);
   $('statusText').textContent = mode === 'running' ? 'running' : mode === 'passed' ? 'all passed' : mode === 'failed' ? 'failed' : 'idle';
-
-  $('taskChip').innerHTML = s.tasks.length
-    ? 'task <b>' + Math.max(1, Math.min(s.task_index, s.tasks.length)) + '/' + s.tasks.length + '</b>'
-    : 'no task';
+  $('taskChip').innerHTML = s.tasks.length ? 'task <b>' + Math.max(1, Math.min(s.task_index, s.tasks.length)) + '/' + s.tasks.length + '</b>' : 'no task';
   const cur = s.current || {};
-  $('stepChip').innerHTML = 'step <b>' + (cur.n || 0) + '/' + s.max_steps + '</b>';
-  const secs = s.finished_at && s.started_at ? (s.finished_at - s.started_at)
-             : s.started_at ? (Date.now() / 1000 - s.started_at) : 0;
-  $('timeChip').innerHTML = secs.toFixed(1) + 's';
+  $('stepChip').innerHTML = 'step <b>' + (cur.n || 0) + (s.max_steps ? '/' + s.max_steps : '') + '</b>';
+  const secs = s.finished_at && s.started_at ? (s.finished_at - s.started_at) : s.started_at ? (Date.now() / 1000 - s.started_at) : 0;
+  $('timeChip').textContent = secs.toFixed(1) + 's';
   $('tokenChip').innerHTML = 'jev <b>' + fmt(s.tokens.input + s.tokens.output) + '</b> · openai <b>' + fmt(s.openai_tokens) + '</b>';
   $('modelChip').innerHTML = esc(s.planner) + ' · <b>' + esc(s.planner_model) + '</b>';
-
   $('frame').src = s.frame;
   $('screenInfo').textContent = s.perception + ' perception';
-  const now = cur.action
-    ? cur.action + (cur.target_text ? ' → ' + cur.target_text : (cur.target && cur.target !== 'no_text_target') ? ' → ' + cur.target : '')
-    : (s.running ? 'thinking…' : 'idle');
-  $('nowAction').textContent = now;
+  $('nowAction').textContent = cur.action ? cur.action + (cur.target_text ? ' → ' + cur.target_text : '') : (s.running ? 'thinking…' : 'idle');
   $('nowWhy').textContent = cur.reason || '';
-  $('bar').style.width = (s.max_steps ? Math.min(100, ((cur.n || 0) / s.max_steps) * 100) : 0) + '%';
-
+  $('bar').style.width = s.max_steps ? Math.min(100, ((cur.n || 0) / s.max_steps) * 100) + '%' : (s.running ? '100%' : '0%');
   $('run').disabled = s.running;
   $('stop').disabled = !s.running;
-
   renderTimeline(s.timeline || []);
   renderResults(s.results || []);
-  renderSummary(s.results || [], s.running);
-
-  const plan = s.plan || [];
-  const mem = s.memory || '';
+  $('summary').innerHTML = s.results.length
+    ? '<b>' + s.results.filter((r) => r.passed).length + '/' + s.results.length + '</b> passing' + (s.running ? ' · running…' : '')
+    : 'waiting…';
+  const plan = s.plan || [], mem = s.memory || '';
   $('planStrip').innerHTML = plan.length
     ? '<b>plan</b> ' + plan.map(esc).join(' → ') + (mem ? ' &nbsp;·&nbsp; <b>mem</b> ' + esc(mem) : '')
     : (s.running ? 'planning…' : 'no plan yet');
-
   const text = (s.log || []).join('\n');
   const log = $('log');
   if (log.textContent !== text) { log.textContent = text; log.scrollTop = log.scrollHeight; }
 }
 
+async function renderSystem() {
+  try {
+    const y = await api('/api/system');
+    const pct = y.disk_total_gb ? Math.round((y.disk_used_gb / y.disk_total_gb) * 100) : 0;
+    $('sysChip').innerHTML = 'v' + esc(y.version) + ' · disk <b>' + y.disk_used_gb + '/' + y.disk_total_gb + 'G</b> (' + pct + '%)' +
+      ' · mem <b>' + y.mem_free_mb + 'M</b> free · load <b>' + y.load[0] + '</b>';
+  } catch (e) {}
+}
+
+async function renderRuns() {
+  try {
+    const data = await api('/api/runs');
+    runsLoaded = data.runs.length;
+    const body = $('runsBody');
+    $('runsStrip').innerHTML = '<b>' + data.runs.length + '</b> run' + (data.runs.length === 1 ? '' : 's') + ' on disk' +
+      (data.runs.length ? ' — click one to inspect' : '');
+    if (!data.runs.length) {
+      body.innerHTML = '<div class="more">No runs yet. Every completed task suite is exported to <span class="mono">runs/</span> and listed here.</div>';
+      return;
+    }
+    body.innerHTML = data.runs.map((r) =>
+      '<div class="runrow" data-id="' + esc(r.id) + '">' +
+        '<span class="badge ' + (r.passed ? 'pass' : 'fail') + '">' + (r.passed ? 'PASS' : 'FAIL') + '</span>' +
+        '<span class="id mono">' + esc(r.id) + '</span>' +
+        '<span class="task">' + esc((r.tasks[0] || {}).task || '') + (r.tasks.length > 1 ? '  +' + (r.tasks.length - 1) : '') + '</span>' +
+        '<span class="meta">' + esc(r.duration_s ?? '?') + 's · ' + fmt((r.tokens && (r.tokens.input + r.tokens.output)) + (r.openai_tokens || 0)) + ' tok</span>' +
+      '</div>').join('');
+    body.querySelectorAll('.runrow').forEach((el) => el.onclick = () => showRun(el.dataset.id));
+  } catch (e) {}
+}
+
+async function showRun(id) {
+  const body = $('runsBody');
+  body.innerHTML = '<div class="more">loading ' + esc(id) + '…</div>';
+  try {
+    const d = await api('/api/runs/' + id);
+    const s = d.summary || {};
+    const tasks = (s.tasks || []).map((t) =>
+      '<div class="vrow"><span class="badge ' + (t.passed ? 'pass' : 'fail') + '">' + (t.passed ? 'PASS' : 'FAIL') + '</span>' +
+      '<span class="task">' + esc(t.task) + '</span><span class="meta">' + esc(t.reason) + ' · ' + esc(t.steps) + ' steps · ' + esc(t.duration_s ?? '?') + 's</span></div>').join('');
+    const files = (d.files || []).map((f) => '<a href="' + esc(f.url) + '" target="_blank">' + esc(f.name) + ' (' + Math.round(f.bytes / 1024) + 'kB)</a>').join('');
+    const steps = (d.timeline || []).filter((t) => t.kind === 'step').map((t) =>
+      '<div class="runrow"><span class="id mono">#' + esc(t.n) + '</span><span class="task">' + esc(t.action) + ' ' + esc(t.target_text || '') + '</span>' +
+      '<span class="meta">' + esc((t.reason || '').slice(0, 70)) + '</span></div>').join('');
+    body.innerHTML =
+      '<div class="kv"><button id="runsBack">← runs</button>' +
+      '<span class="badge ' + (s.passed ? 'pass' : 'fail') + '">' + (s.passed ? 'PASS' : 'FAIL') + '</span>' +
+      '<span class="chip">' + esc(s.duration_s ?? '?') + 's</span>' +
+      '<span class="chip">jev ' + fmt((s.tokens && (s.tokens.input + s.tokens.output)) || 0) + ' · openai ' + fmt(s.openai_tokens) + '</span>' +
+      '<span class="chip">' + esc(id) + '</span></div>' +
+      '<h3>tasks</h3>' + tasks +
+      '<h3>artifacts</h3><div class="files">' + files + '</div>' +
+      '<h3>steps</h3>' + steps;
+    $('runsBack').onclick = () => { renderRuns(); };
+  } catch (e) {
+    body.innerHTML = '<div class="more">could not load run ' + esc(id) + '</div>';
+  }
+}
+
+function setTab(next) {
+  tab = next;
+  $('tabLive').className = next === 'live' ? 'active' : '';
+  $('tabRuns').className = next === 'runs' ? 'active' : '';
+  $('liveView').style.display = next === 'live' ? 'flex' : 'none';
+  $('runsView').style.display = next === 'runs' ? 'flex' : 'none';
+  if (next === 'runs') renderRuns();
+}
+
 async function tick() {
   try { render(await api('/api/state')); } catch (e) {}
-  setTimeout(tick, 1000);
+  if (tab === 'runs') renderRuns();
+  setTimeout(tick, 1200);
 }
 
 $('run').onclick = async () => {
   const tasks = $('task').value.split('\n').map((t) => t.trim()).filter(Boolean);
   if (!tasks.length) { $('task').focus(); return; }
   seen = 0; $('feed').innerHTML = '';
-  await api('/api/run', {tasks});
+  try { await api('/api/run', {tasks}); } catch (e) {}
 };
-$('stop').onclick = () => api('/api/stop', {});
-$('task').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('run').click();
-});
-document.querySelectorAll('.presets button').forEach((b) => b.onclick = () => {
-  $('task').value = b.dataset.task;
-  $('task').focus();
-});
+$('stop').onclick = () => api('/api/stop', {}).catch(() => {});
+$('task').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('run').click(); });
+document.querySelectorAll('.presets button').forEach((b) => b.onclick = () => { $('task').value = b.dataset.task; $('task').focus(); });
 $('rawBtn').onclick = () => $('rawOverlay').classList.add('show');
 $('rawClose').onclick = () => $('rawOverlay').classList.remove('show');
+$('tabLive').onclick = () => setTab('live');
+$('tabRuns').onclick = () => setTab('runs');
 
+renderSystem();
+setInterval(renderSystem, 5000);
+if (location.hash === '#runs') setTab('runs');
 tick();
 </script>
 </body>
