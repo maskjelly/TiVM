@@ -95,7 +95,7 @@ The sandbox is ephemeral by design: every `make up` starts a fresh machine.
 Commands:
 
 ```sh
-make vm          # one-time: colima VM, 2 vCPU / 4 GB RAM / 40 GB disk
+make vm          # one-time: colima VM, 2 vCPU / 4 GB RAM / 40 GB disk (docker storage on it)
 make up          # always starts fresh: down + prune dangling layers + recreate
 make runs        # list exported run folders
 make wipe-runs   # delete all artifacts

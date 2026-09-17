@@ -1,5 +1,7 @@
 vm:
 	colima start --cpu 2 --memory 4 --disk 40
+	@colima ssh -- lsblk | grep -E "vda|vdb" || true
+	@colima ssh -- df -h / | tail -1
 
 up:
 	mkdir -p runs
