@@ -1,20 +1,49 @@
 # TiVM
 
-Computer-use test harness: a throwaway Linux desktop in Docker, driven by
-[TypeSafe](https://docs.typesafe.ai)'s **Jev** classifier instead of a frontier model.
-Type a task (or a suite of tasks) in the web panel; the loop perceives the screen, asks Jev
-typed questions, acts, and returns a pass/fail verdict per task — the shape a PR bot would post.
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#quick-start)
+[![Decisions](https://img.shields.io/badge/decisions-TypeSafe%20jev%20%7C%20OpenAI-8b5cf6.svg)](https://docs.typesafe.ai)
 
-## Perception: Jev is text-only, so the screen must become text
+**Computer-use agent for a throwaway Linux desktop.** Give it a task in plain English — it opens
+apps, types commands, installs repos, runs dev servers and clicks through the UI. The screen is
+read through the **AT-SPI accessibility tree** (not pixels), decisions come from either
+**TypeSafe Jev** typed questions or a **GPT-5.6** planner that can write shell commands, and
+actions run through a11y `invoke` or `xdotool`. A fresh sandbox on every run; verdicts and
+screenshots are exported before teardown.
+
+![Control panel](docs/panel.png)
+*Control panel: live screen with the chosen target boxed, the orchestrator's plan/memory strip,
+per-step timeline (action, reason, self-check, timings, tokens) and per-task verdicts.*
+
+## Quick start
+
+```sh
+brew install colima docker docker-compose     # or Docker Desktop / your distro's docker
+make vm && make up                            # 2 vCPU / 4 GB / 40 GB VM + sandbox image (~5 min)
+cp .env.example .env                          # add OPENAI_API_KEY and/or TYPESAFE_API_KEY
+```
+
+- **Control panel** — http://localhost:6081 (type tasks, watch every decision)
+- **Desktop (noVNC)** — http://localhost:6080/vnc.html?autoconnect=1&resize=scale
+
+Type one task per line in the panel and hit **Run tests**; each line is a test case with its own
+PASS/FAIL verdict. Nothing runs until you trigger it. Stop with `make down`.
+
+Notes: the TypeSafe org behind `TYPESAFE_API_KEY` needs credits (otherwise every Jev step returns
+HTTP 402). `OPENAI_API_KEY` is only needed for the default OpenAI planner.
+
+## Perception: the screen becomes text
 
 | source | cost | what it gives |
 | ------ | ---- | ------------- |
 | **AT-SPI accessibility tree** (primary) | ~50ms | role + name + coordinates for real widgets; clicks can be *invoked on the widget* instead of moving the mouse |
 | **tesseract OCR**, 2x upscale (fallback) | ~400-700ms | text on surfaces a11y can't see (canvas, web content, non-GTK apps); runs only when a11y coverage is thin |
+| **OpenAI vision OCR** (`TIVM_PERCEPTION=vision`) | ~2s | optional semantic OCR when you want no local dependencies |
 
-Submenus are exposed as role `menu` (marked "opens a submenu") vs `menu item`, so Jev can
-navigate menus it has never seen. A 160x100 pixel-diff thumb drives change detection and the
-"did my action do anything" check (a hash is useless — the panel clock ticks every minute).
+Off-screen a11y nodes are filtered (Firefox happily reports links 6,000px below the viewport),
+submenus are exposed as role `menu` vs `menu item`, and focused-but-unlabeled widgets show up as
+`(focused, no label)` so the planner knows where typing will land. A 160x100 pixel-diff thumb
+drives change detection and the "did that do anything" check.
 
 ## One step
 
@@ -29,15 +58,16 @@ perceive (a11y + optional OCR) → one planner call → act → settle
 | `openai` (default) | `TIVM_OPENAI_PLANNER_MODEL`, default `gpt-5.6-sol` with `reasoning=none` | yes — screenshot in the same call | yes (any shell command, search query, message) | ~2.0–2.7s, ~2.6k tokens |
 | `jev` | TypeSafe `jev-latest` | no — text state only | no (types only text found in the task) | ~0.9s decide, ~1.5k in / 0.25k out |
 
-In `openai` mode the a11y tree is the only perception source (the planner reads the screenshot
-itself), so tesseract is skipped entirely — that is the atomic single-call path.
-Perception modes: `TIVM_PERCEPTION=vision` adds OpenAI OCR text items (`gpt-5.6-sol`),
-`a11y` uses none, `hybrid` keeps tesseract as the Jev-mode fallback.
+The planner is an orchestrator with memory: each reply carries a `plan` (remaining substeps),
+a `memory` string (repo path, dev-server port, what is still installing) and a `check` (what must
+be true after the action, verified on the next step). Steps are unlimited by default
+(`TIVM_MAX_STEPS=0`); a run ends on `done`, `blocked`, a stall, or the Stop button.
 
 Measured on the demo task (open the text editor, type `"hello from Jev"`):
 
 - OpenAI planner: 5 steps, 18.4s wall, ~2.6k tokens/step (free text typed by the model)
 - Jev planner: 6 steps, 10.3s wall, ~1.5k in / 0.25k out per step
+
 
 ## What's in the sandbox
 
@@ -104,29 +134,6 @@ make clean       # down + remove dangling images and build cache (frees GBs)
 
 `TIVM_KEEP_RUNS` (default 20) caps how many run folders are kept; older ones are
 deleted when a new run starts.
-
-## Run it
-
-Requires a container runtime (Docker CLI + a VM, e.g. Colima on macOS):
-
-```sh
-colima start --memory 4 --cpu 2
-make up          # builds the image and starts the desktop (~3-6 min first time)
-```
-
-- **Control panel** — http://localhost:6081 (type tasks, watch decisions, see live screen, verdict JSON at `/api/result`)
-- **Desktop (noVNC)** — http://localhost:6080/vnc.html?autoconnect=1&resize=scale
-
-The TypeSafe org behind `TYPESAFE_API_KEY` needs credits — without them every step fails with
-HTTP 402 (add them at console.typesafe.ai/settings/billing).
-
-Try a preset, or:
-
-```
-Open the text editor (Mousepad) and type "hello from Jev"
-Open the file manager and open the "Documents" folder
-Open the Web browser and search the web for "typesafe ai"
-```
 
 ## Layout
 
