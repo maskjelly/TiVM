@@ -1,3 +1,6 @@
+vm:
+	colima start --cpu 2 --memory 4 --disk 40
+
 up:
 	mkdir -p runs
 	docker compose down --remove-orphans >/dev/null 2>&1 || true

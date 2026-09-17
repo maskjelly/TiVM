@@ -95,10 +95,11 @@ The sandbox is ephemeral by design: every `make up` starts a fresh machine.
 Commands:
 
 ```sh
-make up        # always starts fresh: down + prune dangling layers + recreate
-make runs      # list exported run folders
-make wipe-runs # delete all artifacts
-make clean     # down + remove dangling images and build cache (frees GBs)
+make vm          # one-time: colima VM, 2 vCPU / 4 GB RAM / 40 GB disk
+make up          # always starts fresh: down + prune dangling layers + recreate
+make runs        # list exported run folders
+make wipe-runs   # delete all artifacts
+make clean       # down + remove dangling images and build cache (frees GBs)
 ```
 
 `TIVM_KEEP_RUNS` (default 20) caps how many run folders are kept; older ones are
