@@ -1,13 +1,16 @@
 from pathlib import Path
+import time
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
+from . import vision
 from .loop import Runner
 
 app = FastAPI(title="TiVM")
 runner = Runner()
+_frame_cache = {"at": 0.0, "data": None}
 
 
 class RunBody(BaseModel):
@@ -38,7 +41,13 @@ def stop():
 
 @app.get("/api/state")
 def state():
-    return runner.snapshot_with_frame()
+    data = runner.snapshot()
+    now = time.time()
+    if _frame_cache["data"] is None or now - _frame_cache["at"] > 0.8:
+        _frame_cache["data"] = vision.panel_frame(element=runner.last_element, label=runner.last_label)
+        _frame_cache["at"] = now
+    data["frame"] = _frame_cache["data"]
+    return data
 
 
 @app.get("/api/result")

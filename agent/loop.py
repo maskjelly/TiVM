@@ -380,7 +380,7 @@ class Runner:
         self.last_check = ""
         note = "This is the first step."
 
-        for step in range(1, self.max_steps + 1):
+        for step in range(1, (self.max_steps or 10**9) + 1):
             if self.stop_flag:
                 return {"task": task, "passed": False, "steps": step - 1, "reason": "stopped by user"}
             self.step += 1
@@ -647,7 +647,7 @@ class Runner:
                 note=note,
             )
 
-        return {"task": task, "passed": False, "steps": self.max_steps, "reason": "step limit reached"}
+        return {"task": task, "passed": False, "steps": step, "reason": "step limit reached" if self.max_steps else "stopped"}
 
     def _run(self):
         try:
