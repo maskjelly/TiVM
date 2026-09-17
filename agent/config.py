@@ -14,6 +14,7 @@ GRID_COLS = 4
 GRID_ROWS = 3
 
 DONE_THRESHOLD = 0.60
+BLOCKED_THRESHOLD = float(os.environ.get("TIVM_BLOCKED_THRESHOLD", "0.70"))
 MIN_CONFIDENCE = float(os.environ.get("TIVM_MIN_CONFIDENCE", "0.35"))
 UNCERTAIN_LIMIT = 3
 STUCK_REPEAT_LIMIT = 3
@@ -23,6 +24,7 @@ SETTLE_TIMEOUT = float(os.environ.get("TIVM_SETTLE_TIMEOUT", "1.5"))
 SETTLE_POLL = float(os.environ.get("TIVM_SETTLE_POLL", "0.08"))
 A11Y_SKIP_OCR_MIN = int(os.environ.get("TIVM_A11Y_SKIP_OCR_MIN", "10"))
 CHANGE_RATIO = float(os.environ.get("TIVM_CHANGE_RATIO", "0.004"))
+TYPE_PRESSES_RETURN = os.environ.get("TIVM_TYPE_RETURN", "1") not in ("0", "false", "False")
 
 H_NAMES = ["left", "center-left", "center-right", "right"]
 V_NAMES = ["top", "middle", "bottom"]
@@ -73,6 +75,17 @@ def build_questions(task, elements):
             "criteria": {
                 "true": "The goal is visibly achieved, nothing more is needed",
                 "false": "The goal is not achieved yet, or it is unclear",
+            },
+        },
+        "blocked": {
+            "type": "noul",
+            "instructions": (
+                "The screen shows an error, a password or login prompt, or a refusal that prevents "
+                "completing the TASK and that no further click or key would fix."
+            ),
+            "criteria": {
+                "true": "Progress is impossible: an unrecoverable error or an auth prompt is on screen",
+                "false": "No such blocker is visible",
             },
         },
         "target": {

@@ -23,6 +23,13 @@ def type_candidates(task):
     candidates = []
     for pattern in (r'"([^"]{1,100})"', r"'([^']{1,100})'"):
         candidates.extend(re.findall(pattern, task))
+    urls = re.findall(r"https?://[^\s\"']+", task)
+    install = re.search(r"\binstall\s+(?:the\s+)?(?:package\s+)?([A-Za-z0-9+_.-]+)", task, re.I)
+    if install:
+        candidates.append(f"sudo apt-get install -y {install.group(1)}")
+    if re.search(r"\b(?:clone|pull|checkout|fetch)\b", task, re.I):
+        candidates.extend(f"git clone {url}" for url in urls)
+    candidates.extend(urls)
     match = re.search(r"(?:type|write|search(?: the web)?(?: for)?|enter|look up)\s+(.+?)(?:[.,;]|$)", task, re.I)
     if match:
         candidates.append(match.group(1).strip())
@@ -43,6 +50,7 @@ def build_state(task, elements, history, note, step, max_steps):
             "You cannot see the screen; this is the list of widgets and text detected on it, in reading order."
         ),
         "open_windows": [f'{w["title"]} ({w["x"]},{w["y"]} {w["w"]}x{w["h"]})' for w in vision.windows()],
+        "focused_window": vision.active_window(),
         "recent_actions": history[-6:],
         "note": note,
     }
@@ -143,11 +151,22 @@ class Runner:
 
         if action == "type":
             candidates = type_candidates(task)
+            remaining = [c for c in candidates if c not in self.typed]
             if not candidates:
                 self.log('nothing to type: put the text in quotes in the task, e.g. type "hello"')
+                self.no_text_note = True
                 return "type skipped (no text found in task)"
-            actions.type_text(candidates[0])
-            return f'typed "{candidates[0]}"'
+            if not remaining:
+                self.log("all candidate texts already typed; nothing new to type")
+                self.no_text_note = True
+                return "type skipped (already typed)"
+            actions.type_text(remaining[0])
+            self.typed.append(remaining[0])
+            if config.TYPE_PRESSES_RETURN:
+                time.sleep(0.2)
+                actions.press_key("Return")
+                return f'typed "{remaining[0]}" + Return'
+            return f'typed "{remaining[0]}"'
 
         if action == "key":
             key = (answers.get("key") or {}).get("choice") or "Return"
@@ -183,7 +202,15 @@ class Runner:
         for i, element in enumerate(merged, start=1):
             element["id"] = f"e{i}"
             if element.get("source") == "a11y":
-                suffix = ", opens a submenu" if element["role"] == "menu" else ""
+                extras = []
+                if element["role"] == "menu":
+                    extras.append("opens a submenu")
+                if element.get("focused"):
+                    extras.append("has keyboard focus")
+                value = element.get("value") or ""
+                if value:
+                    extras.append(f'contains "{value[:80]}"')
+                suffix = f", {', '.join(extras)}" if extras else ""
                 element["desc"] = (
                     f'{element["role"]} "{element["text"]}" at x={element["x"]} y={element["y"]} '
                     f'(size {element["w"]}x{element["h"]}{suffix})'
@@ -216,6 +243,8 @@ class Runner:
         last_signature = None
         repeat = 0
         low_conf = 0
+        self.typed = []
+        self.no_text_note = False
         note = "This is the first step."
 
         for step in range(1, self.max_steps + 1):
@@ -251,6 +280,7 @@ class Runner:
             step_out = usage.get("output_tokens", 0)
 
             done = answers["done"]["noul"]
+            blocked = answers["blocked"]["noul"]
             action = answers["action"]["choice"]
             target = answers["target"]["choice"]
             confidence = answers["action"].get("confidence", 0)
@@ -277,6 +307,15 @@ class Runner:
             if done >= config.DONE_THRESHOLD:
                 self.log("task complete according to Jev")
                 return {"task": task, "passed": True, "steps": step, "reason": f"complete (done={done:.2f})"}
+
+            if blocked >= config.BLOCKED_THRESHOLD:
+                self.log(f"blocked (blocked={blocked:.2f}), stopping")
+                return {
+                    "task": task,
+                    "passed": False,
+                    "steps": step,
+                    "reason": f"blocked: an error or auth prompt prevents progress (blocked={blocked:.2f})",
+                }
 
             low_conf = low_conf + 1 if confidence < config.MIN_CONFIDENCE else 0
             if low_conf >= config.UNCERTAIN_LIMIT:
@@ -327,9 +366,20 @@ class Runner:
                 f"+ act {act_ms:.0f} + settle {settle_ms:.0f} ms | tokens "
                 f"{step_in} in / {step_out} out"
             )
+            self.no_text_note = False
 
-            if low_conf > 0:
+            if self.no_text_note:
+                note = (
+                    "The previous action could not run: there was no text available to type. "
+                    "Pick a different action, or a target whose text already appears on screen."
+                )
+            elif low_conf > 0:
                 note = "The last decision had low confidence; pick an obvious, unambiguous target."
+            elif action == "wait" and repeat >= 2:
+                note = (
+                    "Waiting has not changed the screen for several steps. If text was just typed, "
+                    "the app is waiting for Return. Otherwise pick a clickable element or a different action."
+                )
             elif repeat >= config.STUCK_REPEAT_LIMIT:
                 actions.press_key("Escape")
                 note = (

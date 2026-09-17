@@ -25,7 +25,7 @@ def ask(state, questions, timeout=90):
             time.sleep(1.5 * (attempt + 1))
             continue
 
-        if r.status_code in (429, 529):
+        if r.status_code in (429, 502, 503, 504, 529):
             last = f"HTTP {r.status_code}"
             time.sleep(2 ** attempt)
             continue

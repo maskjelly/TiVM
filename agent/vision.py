@@ -145,6 +145,10 @@ def windows():
     return wins
 
 
+def active_window():
+    return _run(["xdotool", "getactivewindow", "getwindowname"]).stdout.strip()
+
+
 def screen_hash(path=RAW_PATH):
     with Image.open(path) as im:
         small = im.convert("L").resize((64, 40))

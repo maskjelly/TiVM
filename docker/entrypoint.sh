@@ -18,6 +18,7 @@ dbus-daemon --system --fork 2>/dev/null || true
 eval "$(dbus-launch --sh-syntax 2>/dev/null)" || true
 
 export NO_AT_BRIDGE=0
+export GIT_TERMINAL_PROMPT=0
 gsettings set org.gnome.desktop.interface toolkit-accessibility true 2>/dev/null || true
 
 startxfce4 >/tmp/xfce.log 2>&1 &

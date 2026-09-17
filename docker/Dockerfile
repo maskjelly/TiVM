@@ -10,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-dejavu-core \
       fonts-liberation \
       gir1.2-atspi-2.0 \
+      git \
+      curl \
       libglib2.0-bin \
       mousepad \
       novnc \

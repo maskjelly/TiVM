@@ -14,6 +14,7 @@ ROLES = {
     "combo box",
     "entry",
     "text",
+    "terminal",
     "label",
     "link",
     "icon",
@@ -47,6 +48,25 @@ def _extents(node):
     if ext.width < 2 or ext.height < 2:
         return None
     return ext.x, ext.y, ext.width, ext.height
+
+
+def _focused(node):
+    try:
+        return node.queryState().contains(pyatspi.STATE_FOCUSED)
+    except Exception:
+        return False
+
+
+def _value(node):
+    try:
+        text_iface = node.queryText()
+        count = text_iface.characterCount
+        start = max(0, count - 240)
+        text = text_iface.getText(start, count)
+    except Exception:
+        return ""
+    text = (text or "").replace("\n", " | ").strip()
+    return text[-240:]
 
 
 def _invokable(node):
@@ -94,22 +114,27 @@ def elements():
         except Exception:
             stack.extend(_children(node))
             continue
-        if name and role in ROLES:
-            ext = _extents(node)
-            if ext:
-                out.append(
-                    {
-                        "source": "a11y",
-                        "role": role,
-                        "text": name[:80],
-                        "x": ext[0],
-                        "y": ext[1],
-                        "w": ext[2],
-                        "h": ext[3],
-                        "invokable": _invokable(node),
-                        "node": node,
-                    }
-                )
+        if role in ROLES:
+            value = _value(node)
+            display = name or value
+            if display:
+                ext = _extents(node)
+                if ext:
+                    out.append(
+                        {
+                            "source": "a11y",
+                            "role": role,
+                            "text": display[:120],
+                            "x": ext[0],
+                            "y": ext[1],
+                            "w": ext[2],
+                            "h": ext[3],
+                            "invokable": _invokable(node),
+                            "focused": _focused(node),
+                            "value": value,
+                            "node": node,
+                        }
+                    )
         stack.extend(_children(node))
     return out
 
