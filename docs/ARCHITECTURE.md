@@ -54,6 +54,31 @@
 waits · Stop button. Steps are unlimited by default (`TIVM_MAX_STEPS=0`); pass `max_steps` per run
 to cap a hosted job.
 
+## Failure contract
+
+Every failure path returns a structured object so the panel, `/api/result` and the exported JSON
+all tell the same story:
+
+```json
+{
+  "stage": "decide | act | settle | wait | limit | error",
+  "step": 12,
+  "reason": "stuck: repeated 'click' 5 times with no result",
+  "action": "click",
+  "target": "e10",
+  "target_text": "push button \"Documents\"",
+  "typed": "bun install",
+  "check": "the folder is open",
+  "focused_window": "root - Thunar",
+  "screen": "…terminal tail…",
+  "elements": ["File", "Edit", "View", "Documents", "…"]
+}
+```
+
+A failed task never stops the suite: the runner logs the remaining task count and continues, and
+the aggregate verdict is reported (e.g. `1/2 passing`). `Stop` and unhandled errors end the run
+but still export everything captured so far.
+
 ## Environment variables
 
 | variable | default | meaning |
@@ -64,10 +89,22 @@ to cap a hosted job.
 | `TIVM_OPENAI_PLANNER_MODEL` | `gpt-5.6-sol` | planner model |
 | `TIVM_OPENAI_REASONING_EFFORT` | `none` | `none` keeps it fast and cheap |
 | `TIVM_OPENAI_VISION_MODEL` | `gpt-5.6-sol` | model used by `TIVM_PERCEPTION=vision` |
+| `TIVM_OPENAI_IMAGE_DETAIL` | `high` | `high` or `low` |
+| `TIVM_OPENAI_MAX_ELEMENTS` | `80` | element list cap in the planner prompt |
 | `TIVM_PERCEPTION` | `hybrid` | `hybrid` (a11y + tesseract for jev) · `a11y` · `vision` |
+| `TIVM_A11Y_SKIP_OCR_MIN` | `10` | a11y widget count above which OCR is skipped |
+| `TIVM_OCR_SCALE` | `2` | tesseract upscale factor |
+| `TIVM_CHANGE_RATIO` | `0.004` | pixel-diff ratio counted as a screen change |
 | `TIVM_MAX_STEPS` | `0` | 0 = unlimited |
+| `TIVM_MAX_WAITS` | `20` | consecutive waits allowed before aborting |
+| `TIVM_WAIT_SECONDS` | `5` | duration of one `wait` action |
+| `TIVM_STALL_LIMIT` | `4` | actions with no screen change before aborting |
+| `TIVM_SETTLE_MIN` / `TIVM_SETTLE_TIMEOUT` / `TIVM_COMMAND_SETTLE_TIMEOUT` | `0.35` / `1.5` / `10` | settle timings in seconds |
+| `TIVM_TYPE_RETURN` | `1` | press Return after typing |
+| `TIVM_BLOCKED_THRESHOLD` / `TIVM_MIN_CONFIDENCE` | `0.70` / `0.35` | Jev planner thresholds |
 | `TIVM_TOKEN` | empty | if set, mutating endpoints require `Authorization: Bearer <token>` |
 | `TIVM_KEEP_RUNS` | `20` | artifact folders kept on disk |
+| `TIVM_RUNS_DIR` | `/app/runs` | artifact directory inside the container |
 | `SCREEN_W` / `SCREEN_H` | `1280` / `800` | desktop resolution |
 
 ## HTTP API

@@ -1,189 +1,219 @@
 # TiVM
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#quick-start)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#install)
 [![Decisions](https://img.shields.io/badge/decisions-TypeSafe%20jev%20%7C%20OpenAI-8b5cf6.svg)](https://docs.typesafe.ai)
 
-**Computer-use agent for a throwaway Linux desktop.** Give it a task in plain English — it opens
-apps, types commands, installs repos, runs dev servers and clicks through the UI. The screen is
-read through the **AT-SPI accessibility tree** (not pixels), decisions come from either
-**TypeSafe Jev** typed questions or a **GPT-5.6** planner that can write shell commands, and
-actions run through a11y `invoke` or `xdotool`. A fresh sandbox on every run; verdicts and
-screenshots are exported before teardown.
+**Computer-use test agent for a disposable Linux desktop ("dev box").** Give it a task in plain
+English — it opens apps, types commands, installs repositories, runs dev servers and clicks
+through the UI. The screen is read through the **AT-SPI accessibility tree** (not pixels),
+decisions come from a **GPT planner** that writes shell commands or from **TypeSafe Jev** typed
+questions, and actions run through accessibility `invoke` or `xdotool`. Every run starts from a
+clean box; verdicts and screenshots are exported before teardown.
 
 ![Control panel](docs/panel.png)
-*Control panel: square, dense, monospace. Live screen with the chosen target boxed, the
-orchestrator's plan/memory strip, per-step timeline (action, reason, timings, tokens) and verdicts.*
+*Control panel: live desktop with the chosen target boxed, task/step chrome, the orchestrator's
+plan and memory, per-step timeline, and per-task verdicts with failure detail.*
 
-![Run history, dark theme](docs/runs-dark.png)
+![Run history](docs/runs.png)
 *Run history: every completed suite is exported to `runs/<id>/` and can be reopened here with its
 timeline, verdicts, token usage and artifacts.*
 
-## Quick start
+---
+
+## Contents
+
+- [Install](#install) · [Configure keys](#configure-keys) · [Run](#run) · [Access](#access)
+- [Running tests](#running-tests) · [What happens during a run](#what-happens-during-a-run)
+- [Verdicts and artifacts](#verdicts-and-artifacts) · [Dev box lifecycle](#dev-box-lifecycle)
+- [Configuration](#configuration) · [Troubleshooting](#troubleshooting)
+- [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Prior art](#prior-art)
+
+## Install
+
+Requirements: Docker CLI + a Linux VM. On macOS that is [colima](https://github.com/abiosoft/colima)
+(free, no Docker Desktop needed). On Linux, plain Docker works — skip `make vm`.
 
 ```sh
-brew install colima docker docker-compose     # or Docker Desktop / your distro's docker
-make vm && make up                            # 2 vCPU / 4 GB / 40 GB VM + sandbox image (~5 min)
-cp .env.example .env                          # add OPENAI_API_KEY and/or TYPESAFE_API_KEY
+# macOS
+brew install colima docker docker-compose
+make vm            # 2 vCPU / 4 GB RAM / 40 GB disk VM (one time)
+
+# Linux: just make sure docker + compose are installed and the daemon runs
+
+make up            # builds the dev-box image and starts it (~6-8 min the first time)
 ```
 
-- **Control panel** — http://localhost:6081 (type tasks, watch every decision)
-- **Desktop (noVNC)** — http://localhost:6080/vnc.html?autoconnect=1&resize=scale
+`make up` always starts fresh (removes the old box, prunes dangling layers, rebuilds if needed).
+`make status` (or `make boxes`) shows the VM, containers, images and disk usage at any time.
 
-Type one task per line in the panel and hit **Run tests**; each line is a test case with its own
-PASS/FAIL verdict. Nothing runs until you trigger it. Stop with `make down`.
+## Configure keys
 
-Notes: the TypeSafe org behind `TYPESAFE_API_KEY` needs credits (otherwise every Jev step returns
-HTTP 402). `OPENAI_API_KEY` is only needed for the default OpenAI planner. `make status` lists the
-VM, container, images and disk usage. Set `TIVM_TOKEN` to require a bearer token on
-`/api/run` and `/api/stop` (the panel prompts for it once).
+Copy the example file and fill in at least one key:
 
-## Perception: the screen becomes text
-
-| source | cost | what it gives |
-| ------ | ---- | ------------- |
-| **AT-SPI accessibility tree** (primary) | ~50ms | role + name + coordinates for real widgets; clicks can be *invoked on the widget* instead of moving the mouse |
-| **tesseract OCR**, 2x upscale (fallback) | ~400-700ms | text on surfaces a11y can't see (canvas, web content, non-GTK apps); runs only when a11y coverage is thin |
-| **OpenAI vision OCR** (`TIVM_PERCEPTION=vision`) | ~2s | optional semantic OCR when you want no local dependencies |
-
-Off-screen a11y nodes are filtered (Firefox happily reports links 6,000px below the viewport),
-submenus are exposed as role `menu` vs `menu item`, and focused-but-unlabeled widgets show up as
-`(focused, no label)` so the planner knows where typing will land. A 160x100 pixel-diff thumb
-drives change detection and the "did that do anything" check.
-
-## One step
-
-```
-perceive (a11y + optional OCR) → one planner call → act → settle
+```sh
+cp .env.example .env
 ```
 
-### Planners (`TIVM_PLANNER`)
+| key | needed for | notes |
+| --- | ---------- | ----- |
+| `OPENAI_API_KEY` | the default planner (`TIVM_PLANNER=openai`) | screenshot → JSON action; can write shell commands |
+| `TYPESAFE_API_KEY` | the alternative planner (`TIVM_PLANNER=jev`) | typed questions only; needs credits on the org or every step returns HTTP 402 |
 
-| mode | model | sees pixels | generates text | measured per step |
-| ---- | ----- | ----------- | -------------- | ----------------- |
-| `openai` (default) | `TIVM_OPENAI_PLANNER_MODEL`, default `gpt-5.6-sol` with `reasoning=none` | yes — screenshot in the same call | yes (any shell command, search query, message) | ~2.0–2.7s, ~2.6k tokens |
-| `jev` | TypeSafe `jev-latest` | no — text state only | no (types only text found in the task) | ~0.9s decide, ~1.5k in / 0.25k out |
+`.env` is git-ignored: **never commit real keys**. The container reads it through
+`docker compose`'s `env_file`, nothing is baked into the image.
 
-The planner is an orchestrator with memory: each reply carries a `plan` (remaining substeps),
-a `memory` string (repo path, dev-server port, what is still installing) and a `check` (what must
-be true after the action, verified on the next step). Steps are unlimited by default
-(`TIVM_MAX_STEPS=0`); a run ends on `done`, `blocked`, a stall, or the Stop button.
+## Run
 
-Measured on the demo task (open the text editor, type `"hello from Jev"`):
-
-- OpenAI planner: 5 steps, 18.4s wall, ~2.6k tokens/step (free text typed by the model)
-- Jev planner: 6 steps, 10.3s wall, ~1.5k in / 0.25k out per step
-
-
-## What's in the sandbox
-
-A throwaway Ubuntu 24.04 dev box: `apt` (with package lists kept, so `apt-get install` works
-in-session), `git`, Python 3 + venv + pip, Node 24 + npm, Bun, Firefox (Mozilla build, a11y
-visible; its one-time privacy notice is dismissed by the agent on first launch), Epiphany, `gcc`/`make`/`pkg-config`/`libssl-dev`,
-`curl`/`wget`/`git`/`jq`/`unzip`/`sudo`, XFCE desktop, tesseract, xdotool, at-spi. `make check`
-prints every version.
-
-## How it works
-
-```
-make up ──► colima VM + Docker ──► tivm-desktop container ──► XFCE desktop (noVNC :6080)
-                                               │
-                                               └─ uvicorn control panel (:6081)
+```sh
+make up        # start the dev box (idempotent; always fresh)
+make down      # stop it
+make logs      # follow container logs
 ```
 
-**Nothing runs on its own.** The container boots a desktop and an idle control panel. A task runs
-only when triggered:
+## Access
 
-| trigger | what happens |
-| ------- | ------------ |
-| panel → **Run tests** | `POST /api/run {tasks: [...]}` on :6081, one task per line |
-| `curl -X POST localhost:6081/api/run -d '{"tasks":["..."]}'` | same, scriptable/CI |
-| `POST /api/stop` | stops after the current action |
+| what | URL |
+| ---- | --- |
+| Control panel (type tests, watch decisions) | http://localhost:6081 |
+| Desktop, live in the browser (noVNC) | http://localhost:6080/vnc.html?autoconnect=1&resize=scale |
+| Verdict JSON of the current/last run | http://localhost:6081/api/result |
+| Raw log | panel header → **Log** |
 
-Each task: perceive (a11y) → one OpenAI planner call (screenshot + plan/memory/check) → act
-(invoke or xdotool) → settle. The planner keeps a running `plan` and `memory` across steps so it
-stays on task. Verdict per task: `PASS`/`FAIL` with a reason, at `/api/result` and in the panel.
+Ports are published on `0.0.0.0`, so another device on the same network can use
+`http://<your-ip>:6081` and `http://<your-ip>:6080/vnc.html?autoconnect=1&resize=scale`.
+**There is no auth by default** — set `TIVM_TOKEN` (see [Configuration](#configuration)) before
+exposing the panel beyond your machine.
 
-Artifacts are exported to the host as the run goes:
+## Running tests
+
+Type one test per line in the panel and press **Run tests** (⌘/Ctrl+Enter). Each line is an
+independent test case with its own verdict.
 
 ```
-runs/<timestamp>/run.json            suite summary
-runs/<timestamp>/task-N.json         verdict, steps, tokens, duration
+Open a terminal and run "uname -a && node -v && bun -v"
+Clone https://github.com/owner/repo and show its files
+Open the file manager and open the "Documents" folder
+```
+
+Nothing runs until you trigger it. From CI or a script, the same thing over HTTP:
+
+```sh
+curl -X POST localhost:6081/api/run \
+  -H 'Content-Type: application/json' \
+  -d '{"tasks": ["Open a terminal and run \"bun --version\""]}'
+```
+
+With `TIVM_TOKEN=secret`: add `-H 'Authorization: Bearer secret'`.
+
+## What happens during a run
+
+```
+perceive (a11y + optional OCR) → one planner call → act → settle → repeat
+```
+
+- **Perceive** — walk the AT-SPI tree (~50 ms): real widgets with role, name, coordinates,
+  focus and values. Off-screen nodes are filtered. OCR (tesseract) or OpenAI vision can be
+  enabled as a fallback for surfaces a11y cannot see.
+- **Decide** — one call to the planner with the screenshot (OpenAI) or typed questions (Jev).
+  The planner is an orchestrator with memory: it maintains a `plan`, a `memory` string and a
+  self-`check` for each action, all carried across steps so it stays on task.
+- **Act** — accessibility `invoke` when the widget supports it (no mouse), otherwise `xdotool`.
+  Typing presses Return by default; empty targets are refused with corrective feedback.
+- **Settle** — poll until the frame stops changing (0.35 s min, up to 10 s after commands).
+
+Guards: `done`/`blocked` from the planner, 4 identical actions, 4 no-change actions, 20
+consecutive waits, Stop. Steps are **unlimited by default** (`TIVM_MAX_STEPS=0`).
+
+## Verdicts and artifacts
+
+Each task ends with `PASS`/`FAIL` and a reason. A failed task never stops the suite — remaining
+tasks still run, and the final verdict is the aggregate (e.g. `1/2 passing`).
+
+Failures carry the full story (panel, `/api/result` and the JSON artifacts):
+
+```json
+{
+  "task": "Open the file manager and open the \"NONEXISTENT\" folder",
+  "passed": false,
+  "reason": "blocked: an error, auth prompt or missing target prevents progress",
+  "failure": {
+    "stage": "decide",          // decide | act | settle | wait | limit | error
+    "step": 4,
+    "action": "type",           // what it was doing
+    "target_text": null,        // where
+    "typed": "root/Documents",
+    "check": "the folder opens",
+    "focused_window": "File System - Thunar",
+    "screen": "…terminal tail…",
+    "elements": ["File", "Edit", "View", "Documents", "Downloads", "…"]
+  }
+}
+```
+
+Every finished suite is exported to the host:
+
+```
+runs/<timestamp>/run.json            suite summary + per-task results (failures included)
+runs/<timestamp>/task-N.json         verdict, steps, tokens, duration, failure
 runs/<timestamp>/task-N-final.jpg    annotated final screen
-runs/<timestamp>/timeline.json       every step (action, reason, timings, tokens)
+runs/<timestamp>/timeline.json       every step: action, reason, check, timings, tokens
 ```
 
 `make runs` lists them, `make wipe-runs` deletes them, `TIVM_KEEP_RUNS` (default 20) auto-prunes.
 
-Changes are committed and pushed to `origin/main` (`git push`), never from inside the container —
-the only host-mounted paths are `./agent` (read-only code) and `./runs` (artifacts out).
+## Dev box lifecycle
 
-## Dev boxes
+One running sandbox = one **dev box** (container inside the colima VM). Nothing survives a start:
+repos, installs, caches and browser profiles are wiped by the entrypoint on every boot, so runs
+never inherit state.
 
-One running sandbox = one **dev box**: a disposable Linux desktop (container inside the colima VM)
-that exists for a test run and nothing else. Every start is fresh, and you can kill boxes at any
-time without losing verdicts — artifacts live on the host in `runs/`.
+| command | what it does |
+| ------- | ------------ |
+| `make boxes` | list dev boxes: containers, VM, disk footprint |
+| `make kill` | stop/remove boxes, prune images (keeps `./runs` artifacts) |
+| `make nuke` | kill boxes + delete the VM → reclaims RAM and ~GBs of disk |
+| `make clean` | prune dangling images and build cache |
 
-```sh
-make boxes     # list dev boxes: containers, VM, disk footprint
-make kill      # stop and remove all dev boxes (keeps images and ./runs artifacts)
-make nuke      # kill boxes + delete the VM: reclaims memory and disk (~4GB)
-```
+## Configuration
 
-`make kill` frees the RAM immediately; `make nuke` also reclaims the VM disk, at the cost of a
-rebuild on the next `make vm && make up` (~6-8 min).
+All settings live in `agent/config.py` with env-var overrides; the ones you are likely to touch:
 
-## What persists (and what is wiped)
+| variable | default | meaning |
+| -------- | ------- | ------- |
+| `TIVM_PLANNER` | `openai` | `openai` (sees pixels, writes commands) or `jev` (cheap, text-only) |
+| `TIVM_OPENAI_PLANNER_MODEL` | `gpt-5.6-sol` | planner model |
+| `TIVM_OPENAI_REASONING_EFFORT` | `none` | keep it non-reasoning for speed/cost |
+| `TIVM_OPENAI_VISION_MODEL` | `gpt-5.6-sol` | model for `TIVM_PERCEPTION=vision` |
+| `TIVM_PERCEPTION` | `hybrid` | `hybrid` (a11y + tesseract for Jev) · `a11y` · `vision` |
+| `TIVM_MAX_STEPS` | `0` | 0 = unlimited; cap per run via the API if you want a budget |
+| `TIVM_TOKEN` | empty | bearer token required on `/api/run` and `/api/stop` |
+| `TIVM_KEEP_RUNS` | `20` | artifact folders kept on disk |
+| `SCREEN_W` / `SCREEN_H` | `1280` / `800` | dev box resolution |
 
-The sandbox is ephemeral by design: every `make up` starts a fresh machine.
+The full list (waits, settle timings, thresholds, OCR scale, retries) is in
+[`agent/config.py`](agent/config.py). The HTTP API is documented in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#http-api).
 
-| thing | where | survives teardown? |
-| ----- | ----- | ------------------ |
-| run artifacts (`run.json`, per-task verdicts, final screenshots, timeline) | `./runs/<timestamp>/` on the host, mounted into the container | **yes** |
-| cloned repos, `bun install`/`npm install`, apt packages, caches, browser profile | container filesystem | no — wiped at every container start by the entrypoint, and thrown away when the container is recreated |
-| the image (git, node, bun, python, firefox, tesseract) | VM disk (`~/.colima/_lima`) | yes, until `colima delete` or an image prune |
+## Troubleshooting
 
-Commands:
-
-```sh
-make vm          # one-time: colima VM, 2 vCPU / 4 GB RAM / 40 GB disk (docker storage on it)
-make up          # always starts fresh: down + prune dangling layers + recreate a dev box
-make runs        # list exported run folders
-make wipe-runs   # delete all artifacts
-make clean       # down + remove dangling images and build cache (frees GBs)
-```
-
-`TIVM_KEEP_RUNS` (default 20) caps how many run folders are kept; older ones are
-deleted when a new run starts.
-
-## Layout
-
-```
-docker/            Dockerfile + entrypoint (Xvfb, XFCE, x11vnc, noVNC, at-spi, tesseract)
-agent/a11y.py      AT-SPI walk + widget invocation (the fast perception path)
-agent/vision.py    capture, OCR fallback, pixel-diff thumbs, annotated frames
-agent/config.py    every question + threshold, single file for review
-agent/ts.py        TypeSafe HTTP client (retries on 429/529)
-agent/actions.py   xdotool wrappers (mouse/keyboard fallback path)
-agent/loop.py      observe → ask → act loop, suite runner, verdicts, artifacts
-agent/server.py    FastAPI control panel + run history + artifact mount
-docs/              ARCHITECTURE.md (module map, API, env vars), screenshots
-CONTRIBUTING.md    setup, conventions, how to test changes
-```
+| symptom | fix |
+| ------- | --- |
+| `error creating lima disk: disk 'colima' already exists` | `make nuke` (clears `~/.colima/_lima/_disks`), then `make vm && make up` |
+| `Bind for 0.0.0.0:6080 failed: port is already allocated` | another dev box is running: `make boxes`, then `make kill` or `make down` |
+| noVNC shows "disconnected" | the container restarted; `make up` brings it back (~20 s, no rebuild) |
+| every Jev step returns HTTP 402 | the TypeSafe org has no credits — top up or switch to `TIVM_PLANNER=openai` |
+| first browser task clicks a privacy notice | expected once per box; the agent dismisses it |
+| panel unreachable after a VM restart | `make up`; check `make status` |
+| builds feel slow / disk filling | `make clean` (prunes images + build cache), `TIVM_KEEP_RUNS=5` |
 
 ## Prior art
 
 [awlevin/typesafe-computer-use](https://github.com/awlevin/typesafe-computer-use) does the same
-OCR + classifier loop on macOS, much further along. Still worth stealing:
+OCR + classifier loop on macOS and is well worth reading. Differences here: Linux + AT-SPI as the
+primary perception path, a11y `invoke` instead of synthetic clicks, disposable Docker dev boxes,
+and a planner with plan/memory/self-check.
 
-- changed-tile OCR cache (only re-read screen regions that changed)
-- a small writer model for free text, since Jev cannot generate it
-- run folders with numbered screenshots + the exact payload per step, for offline replay
+## License
 
-## Known limits
-
-- Typing only works for text already present in the task (put it in `"quotes"`) — Jev cannot
-  generate text. Pair a small writer model for arbitrary prose.
-- `done` is a single noul; nothing verifies the *state* of the app beyond the screen.
-- Icon-only surfaces fall back to a 4x3 grid click.
-- AT-SPI needs apps started after the a11y bus, and GTK/web coverage varies by toolkit.
+MIT — see [LICENSE](LICENSE).

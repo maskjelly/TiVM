@@ -13,6 +13,9 @@ Panel at http://localhost:6081, desktop at http://localhost:6080/vnc.html?autoco
 `make status` shows the VM, container, images and disk usage. `make check` prints the toolchain
 inside the sandbox. Nothing runs until you press **Run tests** (or `POST /api/run`).
 
+Dev box lifecycle: `make boxes` lists boxes, `make kill` removes containers and prunes images,
+`make nuke` also deletes the VM (reclaims RAM and disk; next start rebuilds, ~6-8 min).
+
 ## Layout
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
@@ -31,8 +34,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
   `openai_client.PLANNER_SYSTEM` and `config.build_questions` in sync.
 - New guards must be *observable* — log them and add a timeline entry, so the panel and
   `runs/<id>/timeline.json` tell the same story.
-- Every failure reason should be actionable ("blocked: auth prompt", "no progress: 4 actions
-  produced no screen change"), never just "failed".
+- Failures must go through `Runner._fail(...)` and carry the structured failure context
+  (stage, step, action, target, check, window, screen, elements). Every failure reason should be
+  actionable ("blocked: auth prompt", "no progress: 4 actions produced no screen change"),
+  never just "failed".
+- A failing task must never stop the suite; remaining tasks still run.
 
 ## Testing
 
