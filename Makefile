@@ -18,7 +18,8 @@ kill:
 
 nuke: kill
 	colima delete -f
-	@echo "VM deleted: memory and storage reclaimed (next start: make vm && make up, ~6-8 min)"
+	rm -rf ~/.colima/_lima/_disks
+	@echo "VM and disks deleted: memory and storage reclaimed (next start: make vm && make up, ~6-8 min)"
 
 status:
 	@echo "--- VMs (colima) ---"
