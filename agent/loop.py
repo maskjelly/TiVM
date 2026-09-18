@@ -104,6 +104,8 @@ class Runner:
         self.plan_state = []
         self.memory = ""
         self.last_check = ""
+        self.last_terminal = []
+        self.last_elements = []
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
@@ -343,6 +345,33 @@ class Runner:
                 self._nodes[element["id"]] = node
         return merged
 
+    def _failure_context(self, stage, step, reason):
+        last = self.current or {}
+        screen = " / ".join(self.last_terminal)[-500:] if self.last_terminal else ""
+        return {
+            "stage": stage,
+            "step": step,
+            "reason": reason,
+            "action": last.get("action"),
+            "target": last.get("target"),
+            "target_text": last.get("target_text"),
+            "typed": last.get("typed"),
+            "check": last.get("check"),
+            "focused_window": vision.active_window(),
+            "screen": screen,
+            "elements": self.last_elements[:24],
+        }
+
+    def _fail(self, task, stage, step, reason):
+        self.log(f"task failed at {stage} (step {step}): {reason}")
+        return {
+            "task": task,
+            "passed": False,
+            "steps": step,
+            "reason": reason,
+            "failure": self._failure_context(stage, step, reason),
+        }
+
     def _settle(self, previous_thumb, timeout=None):
         last = previous_thumb
         stable = 0
@@ -378,6 +407,8 @@ class Runner:
         self.plan_state = []
         self.memory = ""
         self.last_check = ""
+        self.last_terminal = []
+        self.last_elements = []
         note = "This is the first step."
 
         for step in range(1, (self.max_steps or 10**9) + 1):
@@ -404,6 +435,8 @@ class Runner:
             )
 
             state = build_state(task, elements, history, note, step, self.max_steps)
+            self.last_terminal = state.get("terminal_output") or []
+            self.last_elements = [f'{e["text"]}' for e in elements][:24]
             remaining_text = [c for c in type_candidates(task) if c not in self.typed]
             started = time.perf_counter()
             step_openai = 0
@@ -492,48 +525,33 @@ class Runner:
                 return {"task": task, "passed": True, "steps": step, "reason": f"complete (done={done:.2f})"}
 
             if blocked >= config.BLOCKED_THRESHOLD:
-                self.log(f"blocked (blocked={blocked:.2f}), stopping")
                 self.emit("blocked", n=step, action="blocked", reason=f"blocked={blocked:.2f}")
-                return {
-                    "task": task,
-                    "passed": False,
-                    "steps": step,
-                    "reason": f"blocked: an error or auth prompt prevents progress (blocked={blocked:.2f})",
-                }
+                return self._fail(task, "decide", step, "blocked: an error, auth prompt or missing target prevents progress")
 
             low_conf = low_conf + 1 if confidence < config.MIN_CONFIDENCE else 0
             if low_conf >= config.UNCERTAIN_LIMIT:
-                self.log(f"uncertain: {low_conf} low-confidence decisions in a row")
-                return {
-                    "task": task,
-                    "passed": False,
-                    "steps": step,
-                    "reason": f"uncertain: {low_conf} decisions under confidence {config.MIN_CONFIDENCE}",
-                }
+                return self._fail(
+                    task, "decide", step,
+                    f"uncertain: {low_conf} decisions under confidence {config.MIN_CONFIDENCE}",
+                )
 
             signature = (action, target)
             if action == "wait":
                 self.waits += 1
                 if self.waits > config.MAX_CONSECUTIVE_WAITS:
-                    self.log(f"waited {self.waits} times with no progress")
-                    return {
-                        "task": task,
-                        "passed": False,
-                        "steps": step,
-                        "reason": f"no progress: waited {config.MAX_CONSECUTIVE_WAITS}+ times "
-                                  "and the command never finished",
-                    }
+                    return self._fail(
+                        task, "wait", step,
+                        f"no progress: waited {config.MAX_CONSECUTIVE_WAITS} times and the command never finished",
+                    )
             else:
                 self.waits = 0
                 repeat = repeat + 1 if signature == last_signature else 0
                 last_signature = signature
                 if repeat >= config.ABORT_REPEAT_LIMIT:
-                    return {
-                        "task": task,
-                        "passed": False,
-                        "steps": step,
-                        "reason": f"stuck: repeated '{action} {target}' {repeat + 1} times",
-                    }
+                    return self._fail(
+                        task, "act", step,
+                        f"stuck: repeated '{action} {target}' {repeat + 1} times with no result",
+                    )
 
             started = time.perf_counter()
             outcome = self._execute(answers, elements, task)
@@ -576,13 +594,10 @@ class Runner:
             else:
                 self.stall += 1
                 if self.stall >= config.STALL_LIMIT:
-                    self.log(f"no progress: {self.stall} actions produced no screen change")
-                    return {
-                        "task": task,
-                        "passed": False,
-                        "steps": step,
-                        "reason": f"no progress: {self.stall} actions produced no screen change",
-                    }
+                    return self._fail(
+                        task, "settle", step,
+                        f"no progress: {self.stall} actions produced no screen change",
+                    )
 
             if self.no_text_note:
                 note = (
@@ -647,7 +662,10 @@ class Runner:
                 note=note,
             )
 
-        return {"task": task, "passed": False, "steps": step, "reason": "step limit reached" if self.max_steps else "stopped"}
+        return self._fail(
+            task, "limit", step,
+            f"step limit reached ({self.max_steps})" if self.max_steps else "stopped by user",
+        )
 
     def _run(self):
         try:
@@ -665,7 +683,7 @@ class Runner:
                 try:
                     result = self._run_task(task)
                 except Exception as e:
-                    result = {"task": task, "passed": False, "steps": 0, "reason": f"error: {e}"}
+                    result = self._fail(task, "error", self.step, f"error: {e}")
                     self.error = str(e)
                     self.log(f"error: {e}")
 
@@ -677,6 +695,8 @@ class Runner:
                 result["duration_s"] = round(time.time() - task_started, 1)
                 result["frame"] = vision.frame_data_url(element=self.last_element, label=self.last_label)
                 self.results.append(result)
+                if not result["passed"] and index < len(self.tasks):
+                    self.log(f"task {index} failed, continuing with {len(self.tasks) - index} remaining task(s)")
                 try:
                     self._save_task_artifacts(index, result)
                 except OSError as e:
