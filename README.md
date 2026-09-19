@@ -27,7 +27,7 @@ timeline, verdicts, token usage and artifacts.*
 - [Running tests](#running-tests) · [What happens during a run](#what-happens-during-a-run)
 - [Verdicts and artifacts](#verdicts-and-artifacts) · [Dev box lifecycle](#dev-box-lifecycle)
 - [Configuration](#configuration) · [Troubleshooting](#troubleshooting)
-- [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Prior art](#prior-art)
+- [Architecture](docs/ARCHITECTURE.md) · [Hosted service plan](docs/HOSTED.md) · [Contributing](CONTRIBUTING.md) · [Prior art](#prior-art)
 
 ## Install
 
@@ -157,8 +157,15 @@ Every finished suite is exported to the host:
 runs/<timestamp>/run.json            suite summary + per-task results (failures included)
 runs/<timestamp>/task-N.json         verdict, steps, tokens, duration, failure
 runs/<timestamp>/task-N-final.jpg    annotated final screen
+runs/<timestamp>/task-N.mp4          video of the whole task
+runs/<timestamp>/task-N-failure.mp4  last seconds before a failed verdict
+runs/<timestamp>/screen.mp4          full-suite recording (source of the task clips)
+runs/<timestamp>/report.html         shareable report: verdicts, videos, failure story
 runs/<timestamp>/timeline.json       every step: action, reason, check, timings, tokens
 ```
+
+The report is also reachable live at `http://localhost:6081/runs/<id>/report.html`
+(or `/api/runs/<id>/report`, which regenerates it). `TIVM_VIDEO=0` turns recording off.
 
 `make runs` lists them, `make wipe-runs` deletes them, `TIVM_KEEP_RUNS` (default 20) auto-prunes.
 

@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, vision
+from . import config, report, vision
 from .loop import Runner
 
 app = FastAPI(title="TiVM", version=config.VERSION)
@@ -155,11 +155,24 @@ def run_detail(run_id: str):
         with open(timeline) as fh:
             detail["timeline"] = json.load(fh)
     for name in sorted(os.listdir(base)):
-        if name.endswith((".json", ".jpg", ".png", ".log", ".txt")):
+        if name.endswith((".json", ".jpg", ".png", ".log", ".txt", ".html", ".mp4")):
             detail["files"].append(
                 {"name": name, "url": f"/runs/{run_id}/{name}", "bytes": os.path.getsize(os.path.join(base, name))}
             )
     return detail
+
+
+@app.get("/api/runs/{run_id}/report", response_class=HTMLResponse)
+def run_report(run_id: str):
+    if not RUN_ID_RE.match(run_id):
+        raise HTTPException(status_code=400, detail="bad run id")
+    base = os.path.join(config.RUNS_DIR, run_id)
+    if not os.path.isdir(base):
+        raise HTTPException(status_code=404, detail="no such run")
+    path = report.write(base)
+    if not path:
+        raise HTTPException(status_code=404, detail="run has no run.json yet")
+    return HTMLResponse(Path(path).read_text())
 
 
 @app.get("/api/result")

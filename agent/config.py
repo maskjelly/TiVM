@@ -1,6 +1,6 @@
 import os
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 TOKEN = os.environ.get("TIVM_TOKEN", "")
 
 MODEL = os.environ.get("TYPESAFE_MODEL", "jev-latest")
@@ -44,6 +44,11 @@ A11Y_SKIP_OCR_MIN = int(os.environ.get("TIVM_A11Y_SKIP_OCR_MIN", "10"))
 CHANGE_RATIO = float(os.environ.get("TIVM_CHANGE_RATIO", "0.004"))
 RUNS_DIR = os.environ.get("TIVM_RUNS_DIR", "/app/runs")
 KEEP_RUNS = int(os.environ.get("TIVM_KEEP_RUNS", "20"))
+VIDEO = os.environ.get("TIVM_VIDEO", "1") not in ("0", "false", "False")
+VIDEO_FPS = int(os.environ.get("TIVM_VIDEO_FPS", "10"))
+VIDEO_CRF = int(os.environ.get("TIVM_VIDEO_CRF", "30"))
+VIDEO_PRESET = os.environ.get("TIVM_VIDEO_PRESET", "ultrafast")
+VIDEO_FAILURE_WINDOW = float(os.environ.get("TIVM_VIDEO_FAILURE_WINDOW", "25"))
 TYPE_PRESSES_RETURN = os.environ.get("TIVM_TYPE_RETURN", "1") not in ("0", "false", "False")
 
 H_NAMES = ["left", "center-left", "center-right", "right"]
