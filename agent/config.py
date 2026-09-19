@@ -1,6 +1,6 @@
 import os
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 TOKEN = os.environ.get("TIVM_TOKEN", "")
 
 MODEL = os.environ.get("TYPESAFE_MODEL", "jev-latest")

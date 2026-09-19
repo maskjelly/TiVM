@@ -83,7 +83,7 @@ rove-down:
 	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml down'
 
 rove-logs:
-	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml logs -f --tail=100 desktop'
+	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml logs -f --tail=100 desktop orchestrator'
 
 rove-status:
 	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml ps && echo && docker system df && echo && swapon --show'
@@ -95,5 +95,5 @@ rove-test:
 	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml exec -T -w /app desktop python3 -m unittest discover -s /app/tests'
 
 tunnel:
-	ssh -N -o ExitOnForwardFailure=yes -L 6081:127.0.0.1:6081 -L 6080:127.0.0.1:6080 $(ROVE)
+	ssh -N -o ExitOnForwardFailure=yes -L 6081:127.0.0.1:6081 -L 6080:127.0.0.1:6080 -L 6090:127.0.0.1:6090 $(ROVE)
 
