@@ -14,7 +14,7 @@ fi
 
 echo "-- syncing code to $HOST:$DEST"
 ssh "$HOST" "mkdir -p '$DEST'"
-for dir in agent docker deploy examples tests; do
+for dir in agent docker deploy examples tests orchestrator; do
   rsync -az --delete --exclude '__pycache__' "$ROOT/$dir/" "$HOST:$DEST/$dir/"
 done
 rsync -az "$ROOT/docker-compose.yml" "$ROOT/Makefile" "$ROOT/.tivm.yml" "$ROOT/.env.example" "$ROOT/.env" "$HOST:$DEST/"

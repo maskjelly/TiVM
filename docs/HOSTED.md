@@ -49,9 +49,9 @@ Two concurrent dev boxes is the safe ceiling; a third only if the app under test
 
 | piece | lives in | responsibility |
 | ----- | -------- | -------------- |
-| orchestrator | `orchestrator/` (new) | webhook intake, job queue, docker worker lifecycle, GitHub App client, budget guard, report publishing, pruning |
-| agent | `agent/` (existing) | perceive → decide → act → settle; per-task video; `prepare` phase; replay executor; report generator |
-| deploy | `deploy/` (new) | rove provisioning script, hosted compose profile, deploy script, tunnel |
+| orchestrator | `orchestrator/` | webhook intake (HMAC), job queue in SQLite, worker, dev-box client, sticky comment + check, tokenized report serving, internal dashboard |
+| agent | `agent/` | perceive → decide → act → settle; per-task video; prepare phase; report generator |
+| deploy | `deploy/` | rove provisioning script, rove compose override (desktop + orchestrator), deploy script, tunnel |
 | cli | `tivm` entrypoint (new) | `tivm request <pr>`, `tivm replay`, `tivm report` for humans |
 
 ## Contracts
@@ -138,6 +138,7 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 | ----- | ----------- | ---------- |
 | **P0 done** | rove provisioned; hosted compose profile; remote deploy and tunnel targets; per-task video; static report | a suite on rove yields `task-N.mp4` + `report.html`, watched from the Mac over the tunnel — **verified 2026-09-19**: 1/2 flows passed, both clips reviewed, report served over `make tunnel` |
 | **P1 done** | `.tivm.yml` contract, prepare phase (clone at ref/PR, setup, launch, ready check, Firefox), inference fallback, `/api/prepare`, contract flows as the suite | **verified 2026-09-19**: rove cloned the P1 branch, prepared `examples/todo-app` (ready in 2.1 s) and both contract flows passed — add-todo (6 steps) and complete-todo (5 steps), 85 s and ~21k tokens total, per-flow video and report reviewed |
+| **P2 service done, App pending** | orchestrator: HMAC webhook (`issue_comment` mention, `pull_request` label), SQLite queue with supersede-on-push, worker on one dev box, sticky comment + check payloads, tokenized report/video URLs, internal dashboard | **verified 2026-09-19**: a signed `pull_request labeled` webhook for a real PR ref queued a job, the worker prepared and ran the repo's contract flows to `pass`, and the tokenized report + video served 200 through the tunnel (wrong token 404). Posting to GitHub is unit-tested and skipped without a token — App registration/PAT is the remaining step |
 | P2 | GitHub App, queue, concurrency 2, cancel-on-push, sticky comment + check, report URL | `@tivm test` on a real PR produces a report link in under 10 minutes; the panel stays private |
 | P3 | replay executor, divergence fallback, LLM proxy, dep caches, budgets | replay flow < 60 s at ~0 planner tokens; a seeded UI regression is still caught |
 | P4 | nav/link enumeration → generated smoke flows; diff→flows mapping | all top-level surfaces of a reference app are covered within budget, skips reported |
@@ -167,7 +168,6 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 - `TIVM_BIND=127.0.0.1` keeps 6080/6081 off the public interface; ufw is the second layer.
 
 ### rove notes (from P0)
-
 - **Kernel 5.4 vs seccomp.** Ubuntu 24.04's glibc/GLib spawn children with `close_range(2)`
   (kernel 5.9+). Docker's default seccomp profile answers the unknown syscall with EPERM, so
   GLib's `g_spawn` fails and `xfce4-session` cannot start xfwm4, the panel, the desktop or
@@ -189,3 +189,45 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
   ceiling; a run of two flows took ~65 s wall clock and ~2 MB of video.
 - Ubuntu 20.04 is EOL for Docker tooling; upgrade to 22.04/24.04 when convenient (do the kernel
   upgrade first, it also removes the seccomp workaround).
+
+## Orchestrator
+
+Runs as `tivm-orchestrator` next to the dev box (compose service in `deploy/docker-compose.rove.yml`),
+bound to `127.0.0.1:6090`; the tunnel or a public hostname is the only way in.
+
+```
+PR comment "@tivm test" ──webhook──► /webhook (HMAC) ──► jobs table ──► worker
+                                                                        │ POST /api/run {app:{repo,pr}}
+                                                                        ▼
+                                                                     dev box ──► run dir + report.html
+                                                                        │
+                    PR sticky comment + check ◄── /predictable──────────┘
+                    report URLs /reports/<job>/<token>/…
+```
+
+| variable | default | meaning |
+| -------- | ------- | ------- |
+| `TIVM_WEBHOOK_SECRET` | — | HMAC secret for `/webhook`; no secret means no webhooks |
+| `TIVM_GITHUB_TOKEN` | — | bot token for comments/checks; empty = run and record, never post |
+| `TIVM_PUBLIC_URL` | `http://127.0.0.1:6090` | base URL used in report/comment links |
+| `TIVM_BOX_URL` | `http://tivm-desktop:6081` | dev box API |
+| `TIVM_TRIGGER_MENTION` / `TIVM_TRIGGER_LABEL` | `@tivm` / `tivm` | comment mention and PR label |
+| `TIVM_RUN_ON_OPEN` | `0` | run every opened/synced PR that carries the label |
+| `TIVM_JOB_MAX_STEPS` / `TIVM_JOB_TIMEOUT` | `24` / `1800` | per-job budget |
+| `TIVM_CONCURRENCY` | `1` | jobs at once (one dev box today) |
+| `TIVM_API_TOKEN` | — | guards `POST /api/jobs` and cancel |
+
+Manual enqueue from the Mac (through `make tunnel`):
+
+```sh
+curl -X POST localhost:6090/api/jobs -H 'Content-Type: application/json' \
+  -d '{"repo": "maskjelly/TiVM", "pr": 2}'
+```
+
+Notes:
+
+- Report URLs carry a per-job random token; there is no unauthenticated listing of artifacts.
+- A new push on the same PR supersedes the queued/running job (and stops the box only when a run
+  was actually in flight).
+- Every webhook event is stored with the job, so a future replay/debug is possible without GitHub.
+- GitHub permission gating (writer/triage only) is enforced when a token is present.
