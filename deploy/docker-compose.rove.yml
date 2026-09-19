@@ -1,19 +1,18 @@
 # rove-specific overrides.
 #
-# rove runs kernel 5.4; Ubuntu 24.04's glibc/GLib use close_range(2) (kernel 5.9+) when
-# spawning children. Docker's default seccomp profile refuses the unknown syscall with
-# EPERM, so GLib's g_spawn fails ("Failed to close file descriptor for child process")
-# and xfce4-session cannot start xfwm4, the panel, the desktop or Thunar — the desktop
-# stays black. Plain fork/exec shells are unaffected, which is why only GLib-based
-# processes break.
-#
-# This drops seccomp for the desktop container until the host kernel is upgraded:
-#   apt-get install -y linux-generic-hwe-20.04 && reboot     (kernel 5.15)
-# After the reboot, delete this file and redeploy.
+# seccomp-tivm.json is Docker's default allow-list profile (moby v28.1.1) with two changes:
+#   1. close_range is removed from the allow list,
+#   2. the default errno is ENOSYS instead of EPERM.
+# Why: rove's host libseccomp is 2.5.1 and does not know close_range (added in libseccomp 2.5.2),
+# so Docker silently drops that allow rule and the default action applies. EPERM breaks GLib's
+# g_spawn ("Failed to close file descriptor for child process") and therefore xfce4-session cannot
+# start xfwm4, the panel, the desktop or Thunar — a black screen. ENOSYS makes GLib fall back to
+# its /proc/self/fd path, which works. Upgrade the host to Ubuntu 22.04+ (libseccomp >= 2.5.3) and
+# the stock profile can be used again.
 services:
   desktop:
     security_opt:
-      - seccomp=unconfined
+      - seccomp=${TIVM_SECCOMP_PROFILE:-/opt/tivm/deploy/seccomp-tivm.json}
 
   # Job intake, queue and reporting. Reads the dev box over the compose network and
   # the run artifacts straight from ./runs on the host.
@@ -41,4 +40,3 @@ services:
         max-file: "3"
     depends_on:
       - desktop
-
