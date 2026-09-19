@@ -14,3 +14,31 @@ services:
   desktop:
     security_opt:
       - seccomp=unconfined
+
+  # Job intake, queue and reporting. Reads the dev box over the compose network and
+  # the run artifacts straight from ./runs on the host.
+  orchestrator:
+    build:
+      context: ./orchestrator
+    image: tivm-orchestrator:latest
+    container_name: tivm-orchestrator
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TIVM_BOX_URL: http://tivm-desktop:6081
+      TIVM_RUNS_DIR: /runs
+      TIVM_DB: /data/jobs.sqlite
+      TIVM_PUBLIC_URL: ${TIVM_PUBLIC_URL:-http://127.0.0.1:6090}
+    volumes:
+      - ./runs:/runs
+      - ./data:/data
+    ports:
+      - "127.0.0.1:6090:6090"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      - desktop
+
