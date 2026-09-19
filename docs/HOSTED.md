@@ -168,16 +168,18 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 - `TIVM_BIND=127.0.0.1` keeps 6080/6081 off the public interface; ufw is the second layer.
 
 ### rove notes (from P0)
-- **Kernel 5.4 vs seccomp.** Ubuntu 24.04's glibc/GLib spawn children with `close_range(2)`
-  (kernel 5.9+). Docker's default seccomp profile answers the unknown syscall with EPERM, so
-  GLib's `g_spawn` fails and `xfce4-session` cannot start xfwm4, the panel, the desktop or
-  Thunar — the screen stays black. Plain fork/exec is unaffected. `deploy/docker-compose.rove.yml`
-  drops seccomp for the desktop container so runs work today. Proper fix, needs one reboot:
-  `apt-get install -y linux-generic-hwe-20.04 && reboot`, then delete that override.
-- **Bun is broken on kernel 5.4.** Bun 1.4 executes trivial scripts, but on this kernel its event
-  loop spins at 100% CPU and never binds a socket, so any `Bun.serve` app looks hung. The demo app
-  is Node (`node:http`) for this reason, and Bun-based PRs cannot be tested until the HWE kernel is
-  booted. Node 24 is in the image and works normally.
+- **seccomp vs libseccomp 2.5.1.** The host's libseccomp predates `close_range` (added in libseccomp
+  2.5.2), so Docker silently drops that rule from allow-list profiles and the default action
+  applies. With Docker's stock profile (errno EPERM) GLib's `g_spawn` fails — "Failed to close file
+  descriptor for child process" — and `xfce4-session` cannot start xfwm4, the panel, the desktop or
+  Thunar: a black screen. `deploy/seccomp-tivm.json` is Docker's default profile with `close_range`
+  removed and the default errno set to ENOSYS, which GLib treats as "kernel lacks it" and falls
+  back to `/proc/self/fd`. Upgrade the host to Ubuntu 22.04+ (libseccomp >= 2.5.3) and the stock
+  profile works again.
+- **Kernel 5.4 vs Bun.** On the old 5.4 kernel Bun 1.4 spun its event loop at 100% CPU and never
+  bound a socket, so any `Bun.serve` app looked hung. The host now boots
+  `linux-generic-hwe-20.04` (5.15) and Bun works normally; the demo app stays on Node because
+  Node 24 is in the image anyway.
 - Windows are addressed by element id first; when the planner falls back to `x/y`, coordinates are
   in the downscaled screenshot's space and are mapped back to screen pixels
   (`openai_client.to_screen`). A raw click on a 1024-wide screenshot used to land ~20% off. This

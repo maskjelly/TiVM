@@ -3,6 +3,20 @@
 Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
 file.
 
+## 0.5.1 — rove desktop fix: vendored seccomp profile, kernel 5.15
+
+- **Black desktop root cause found.** The host's libseccomp 2.5.1 does not know `close_range`
+  (libseccomp 2.5.2+), so Docker drops that allow rule from any allow-list profile and the default
+  errno applies. With EPERM, GLib's `g_spawn` fails and `xfce4-session` cannot start xfwm4, the
+  panel, the desktop or Thunar. `deploy/seccomp-tivm.json` vendors Docker's default profile minus
+  `close_range` with ENOSYS as the default errno (GLib falls back to `/proc/self/fd`); the desktop
+  container uses it via `TIVM_SECCOMP_PROFILE`. Stock seccomp can return after a host upgrade to
+  22.04+.
+- **Kernel 5.15 on rove.** `linux-generic-hwe-20.04` is installed and booted; Bun 1.4 now serves
+  normally (on 5.4 its event loop spun at 100% CPU and never bound a socket).
+- Verified: XFCE processes up under the profile, orchestrator job on PR #2 ran both contract flows
+  to pass.
+
 ## 0.5.0 — orchestrator: webhooks, queue, reports over one URL
 
 - **`orchestrator/`** — a FastAPI service that turns events into runs:
