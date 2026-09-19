@@ -17,6 +17,7 @@ services:
       - "${TIVM_BIND:-0.0.0.0}:6081:6081"
     volumes:
       - ./agent:/app/agent:ro
+      - ./tests:/app/tests:ro
       - ./runs:/app/runs
     logging:
       driver: json-file

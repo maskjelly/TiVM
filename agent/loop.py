@@ -3,10 +3,11 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import threading
 import time
 
-from . import a11y, actions, config, openai_client, report, ts, video, vision
+from . import a11y, actions, apps, config, openai_client, report, ts, video, vision
 
 
 def _norm(text):
@@ -49,7 +50,7 @@ def type_candidates(task):
     return unique
 
 
-def build_state(task, elements, history, note, step, max_steps):
+def build_state(task, elements, history, note, step, max_steps, app=None):
     state = {
         "task": task,
         "step": f"{step} of {max_steps}",
@@ -62,6 +63,8 @@ def build_state(task, elements, history, note, step, max_steps):
         "recent_actions": history[-6:],
         "note": note,
     }
+    if app:
+        state["app_under_test"] = app
     terminal_output = [e["value"] for e in elements if e.get("role") == "terminal" and e.get("value")]
     if terminal_output:
         state["terminal_output"] = [text[-600:] for text in terminal_output]
@@ -108,6 +111,10 @@ class Runner:
         self.last_elements = []
         self.video_rec = None
         self.t0 = None
+        self.app_request = None
+        self.app = {}
+        self.app_context = ""
+        self.prepare_error = ""
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
@@ -216,13 +223,55 @@ class Runner:
         if path:
             self.log("report: report.html")
 
-    def start(self, tasks, max_steps=None):
+    def _prepare(self):
+        request = dict(self.app_request or {})
+        self.emit("prepare_start", repo=request.get("repo"), ref=request.get("ref"), pr=request.get("pr"))
+        self.log(
+            "prepare: " + ", ".join(
+                f"{k}={request[k]}" for k in ("repo", "ref", "pr", "local_dir") if request.get(k)
+            )
+        )
+        try:
+            info = apps.prepare(request, self._run_dir(), log=self.log)
+        except apps.PrepareError as e:
+            self.prepare_error = str(e)
+            self.log(f"prepare failed: {e}")
+            self.emit("prepare_failed", error=str(e))
+            return
+        self.app = info
+        if not self.tasks:
+            self.tasks = [
+                str(f.get("steps") or f.get("name")).strip()
+                for f in info.get("flows", [])
+                if (f.get("steps") or f.get("name"))
+            ]
+            if self.tasks:
+                self.log(f"flows from .tivm.yml: {len(self.tasks)} task(s)")
+        self.app_context = (
+            f"{info.get('repo', 'the app')} is already running and open in Firefox at {info['url']}. "
+            "Work only inside that app; never re-clone or restart it."
+        )
+        self.emit("prepare_ready", url=info["url"], source=info["source"], dir=info["dir"], sha=info["sha"], ready_s=info["ready_s"])
+        try:
+            subprocess.Popen(
+                ["firefox", info["url"]],
+                env={**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")},
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            self.log(f"firefox opened at {info['url']}")
+            time.sleep(4)
+        except OSError as e:
+            self.log(f"could not open firefox: {e}")
+
+    def start(self, tasks, max_steps=None, app=None):
         with self.lock:
             if self.running:
                 return False
             self._blank()
+            self.app_request = dict(app) if app else None
             self.tasks = [t.strip() for t in tasks if t.strip()]
-            if not self.tasks:
+            if not self.tasks and not self.app_request:
                 return False
             self.max_steps = max_steps or config.MAX_STEPS
             self.running = True
@@ -493,7 +542,7 @@ class Runner:
                 f"{', ocr skipped' if self.ocr_skipped else ''}) in {perceive_ms:.0f}ms"
             )
 
-            state = build_state(task, elements, history, note, step, self.max_steps)
+            state = build_state(task, elements, history, note, step, self.max_steps, app=self.app_context)
             self.last_terminal = state.get("terminal_output") or []
             self.last_elements = [f'{e["text"]}' for e in elements][:24]
             remaining_text = [c for c in type_candidates(task) if c not in self.typed]
@@ -512,6 +561,7 @@ class Runner:
                     plan_state=self.plan_state,
                     memory=self.memory,
                     last_check=self.last_check,
+                    app=self.app_context,
                 )
                 step_openai = usage.get("total_tokens", 0)
                 self.openai_tokens += step_openai
@@ -534,7 +584,9 @@ class Runner:
                 }
                 try:
                     if plan.get("x") is not None and plan.get("y") is not None:
-                        answers["point"] = (int(plan["x"]), int(plan["y"]))
+                        answers["point"] = openai_client.to_screen(
+                            plan["x"], plan["y"], float(plan.get("_scale") or 1.0)
+                        )
                 except (TypeError, ValueError):
                     pass
                 done = 1.0 if plan.get("done") else 0.0
@@ -729,6 +781,10 @@ class Runner:
     def _run(self):
         self._start_video()
         try:
+            if self.app_request:
+                self._prepare()
+                if not self.tasks:
+                    self.tasks = ["the app under test starts and its flows run"]
             for index, task in enumerate(list(self.tasks), start=1):
                 if self.stop_flag:
                     break
@@ -741,12 +797,15 @@ class Runner:
                 tokens_before = (self.tokens_in, self.tokens_out)
                 openai_before = self.openai_tokens
 
-                try:
-                    result = self._run_task(task)
-                except Exception as e:
-                    result = self._fail(task, "error", self.step, f"error: {e}")
-                    self.error = str(e)
-                    self.log(f"error: {e}")
+                if self.prepare_error:
+                    result = self._fail(task, "prepare", 0, f"app prepare failed: {self.prepare_error}")
+                else:
+                    try:
+                        result = self._run_task(task)
+                    except Exception as e:
+                        result = self._fail(task, "error", self.step, f"error: {e}")
+                        self.error = str(e)
+                        self.log(f"error: {e}")
 
                 if self.video_rec is not None:
                     video_ended = self.video_rec.elapsed()
@@ -793,6 +852,10 @@ class Runner:
             self.passed = (
                 len(self.results) == len(self.tasks) and all(r["passed"] for r in self.results)
             )
+            try:
+                apps.stop_all()
+            except Exception:
+                pass
             self._stop_video()
             self._cut_task_videos()
             try:
@@ -851,6 +914,8 @@ class Runner:
                 "openai_tokens": self.openai_tokens,
                 "run_id": self.run_id,
                 "run_dir": self._run_dir() if self.run_id else "",
+                "app": self.app or None,
+                "prepare_error": self.prepare_error or None,
                 "tasks": list(self.results),
                 "error": self.error,
             }

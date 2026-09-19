@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, report, vision
+from . import apps, config, report, vision
 from .loop import Runner
 
 app = FastAPI(title="TiVM", version=config.VERSION)
@@ -27,6 +27,19 @@ class RunBody(BaseModel):
     tasks: list[str] | None = None
     task: str | None = None
     max_steps: int | None = None
+    app: dict | None = None
+
+
+class AppBody(BaseModel):
+    repo: str | None = None
+    local_dir: str | None = None
+    ref: str | None = None
+    pr: int | None = None
+    dir: str | None = None
+    setup: list[str] | None = None
+    run: list[str] | None = None
+    url: str | None = None
+    ready: str | None = None
 
 
 def _require_token(authorization: str | None):
@@ -43,10 +56,24 @@ def index():
 def run(body: RunBody, authorization: str | None = Header(default=None)):
     _require_token(authorization)
     tasks = body.tasks or ([body.task] if body.task else [])
-    ok = runner.start(tasks, body.max_steps)
+    ok = runner.start(tasks, body.max_steps, app=body.app)
     if not ok:
         return JSONResponse({"ok": False, "error": "already running or no tasks"}, status_code=409)
     return {"ok": True, "run_id": runner.run_id}
+
+
+@app.post("/api/prepare")
+def prepare(body: AppBody, authorization: str | None = Header(default=None)):
+    _require_token(authorization)
+    request = body.model_dump(exclude_none=True)
+    if not request.get("repo") and not request.get("local_dir"):
+        raise HTTPException(status_code=400, detail="repo or local_dir is required")
+    run_dir = os.path.join(config.RUNS_DIR, "_prepare")
+    os.makedirs(run_dir, exist_ok=True)
+    try:
+        return {"ok": True, "app": apps.prepare(request, run_dir)}
+    except apps.PrepareError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=422)
 
 
 @app.post("/api/stop")

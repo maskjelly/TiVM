@@ -1,0 +1,14 @@
+tivm: 1
+app:
+  dir: examples/todo-app
+  setup: []
+  run: ["node server.mjs"]
+  url: "http://127.0.0.1:8080"
+  ready: "curl -sf http://127.0.0.1:8080/healthz"
+flows:
+  - name: add-todo
+    steps: In the Todos app, add a todo item "write docs" and confirm it appears in the list
+    expect: the item "write docs" is visible in the All list
+  - name: complete-todo
+    steps: Add a todo item "ship it", mark it done, open the Done filter and confirm it is listed there
+    expect: the Done filter lists the completed item

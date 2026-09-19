@@ -74,6 +74,12 @@ RUN ARCH=$(dpkg --print-architecture) \
        'Icon=/opt/firefox/browser/chrome/icons/default/default128.png' \
        > /usr/share/applications/firefox.desktop
 
+# deterministic customer-facing runs: no onboarding, no default-browser prompt
+RUN mkdir -p /opt/firefox/distribution \
+  && printf '%s\n' \
+       '{"policies":{"OverrideFirstRunPage":"","OverridePostUpdatePage":"","DontCheckDefaultBrowser":true,"DisplayBookmarksToolbar":"never","UserMessaging":{"SkipOnboarding":true,"ExtensionRecommendations":false,"FeatureRecommendations":false,"UrlbarInterventions":false}}}' \
+       > /opt/firefox/distribution/policies.json
+
 RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
   && git config --system user.email "agent@tivm.local" \
   && git config --system user.name "TiVM Agent" \
@@ -87,7 +93,7 @@ RUN mkdir -p /root/Documents /root/Downloads /root/projects && \
     > /root/Documents/README.txt
 
 RUN python3 -m venv --system-site-packages /opt/venv \
-  && /opt/venv/bin/pip install --no-cache-dir fastapi uvicorn pillow requests
+  && /opt/venv/bin/pip install --no-cache-dir fastapi uvicorn pillow requests pyyaml
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \

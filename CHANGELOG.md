@@ -3,6 +3,30 @@
 Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
 file.
 
+## 0.4.0 — app contract and prepare phase
+
+- **`.tivm.yml` contract.** A repo declares how to prepare and run its app (`app.dir`, `app.setup`,
+  `app.run`, `app.url`, optional `app.ready`, `app.ready_timeout`, non-secret `app.env`) and its
+  customer-facing `flows`. When a run gets no explicit tasks, the contract's flows are the suite.
+- **Prepare phase.** `POST /api/run` accepts `app: {repo, ref | pr}`: TiVM clones the ref (PR refs
+  included), reads the contract, runs setup, starts the app detached, waits for readiness, opens it
+  in Firefox, and tells the planner that the app is already running so it never re-clones or
+  restarts it. `POST /api/prepare` runs just the prepare half for debugging. Failures become a
+  structured `prepare` verdict per task instead of a silent hang.
+- **Inference fallback.** Without a contract, `package.json` is enough: lockfile or
+  `packageManager` picks the installer, `dev`/`start`/`preview`/`serve` picks the script, and
+  framework ports (vite, next, astro, ...) or an explicit `--port` pick the URL.
+- **Demo app + dogfooding.** `examples/todo-app` (zero-dependency Node app) with the repo's own
+  `.tivm.yml`: TiVM PRs can be tested by TiVM against its own demo.
+- **Pixel clicks are mapped correctly.** The planner sees a screenshot downscaled to 1024 px wide;
+  its `x/y` answers are now scaled back to real screen pixels instead of being used raw (a click
+  meant for the todo input used to land on the tab strip, ~20% off).
+- **Determinism.** Firefox enterprise policies suppress first-run onboarding and the
+  default-browser prompt; `tests/` (15 stdlib unittest cases) runs in the container via `make test`
+  or `make rove-test`.
+- Runs on rove now force-recreate the container on deploy, so a deploy always serves the code and
+  version that were just shipped.
+
 ## 0.3.0 — hosted foundation
 
 - **Per-task video.** Runs are recorded with `ffmpeg` x11grab (`screen.mp4`) and cut into
