@@ -2,6 +2,6 @@
   "name": "tivm-todo-app",
   "private": true,
   "scripts": {
-    "dev": "bun server.ts"
+    "dev": "node server.mjs"
   }
 }
