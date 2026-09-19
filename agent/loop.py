@@ -64,10 +64,7 @@ def build_state(task, elements, history, note, step, max_steps, app=None):
         "note": note,
     }
     if app:
-        state["app_under_test"] = (
-            f"{app.get('repo', 'the repository')} is already running and open in Firefox at "
-            f"{app.get('url')}. Work only inside that app; never re-clone or restart it."
-        )
+        state["app_under_test"] = app
     terminal_output = [e["value"] for e in elements if e.get("role") == "terminal" and e.get("value")]
     if terminal_output:
         state["terminal_output"] = [text[-600:] for text in terminal_output]
