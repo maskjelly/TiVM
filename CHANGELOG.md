@@ -3,26 +3,6 @@
 Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
 file.
 
-## 0.5.0 — orchestrator: webhooks, queue, reports over one URL
-
-- **`orchestrator/`** — a FastAPI service that turns events into runs:
-  - `POST /webhook` with HMAC-SHA256 verification; `issue_comment` mentions (`@tivm`) and
-    `pull_request` labels (`tivm`) become jobs; every event is stored with the job.
-  - SQLite queue with claim/finish/supersede; a new push on the same PR cancels the previous job
-    (the box is stopped only if that job was actually running).
-  - Worker builds the dev-box run (`{repo, pr}` → the box's prepare phase), waits, records the
-    verdict, and publishes.
-  - Sticky PR comment (upserted by marker, never re-posted), check run with the verdict, failure
-    screenshots inlined, per-flow video links.
-  - Tokenized report serving: `/reports/<job>/<token>/report.html` plus videos and screenshots;
-    wrong token is a 404 and nothing is listable.
-  - `GET /` internal dashboard; `GET/POST /api/jobs`, `POST /api/jobs/{id}/cancel` (token-guarded).
-- **Deploy** — orchestrator joins the hosted compose stack (`tivm-orchestrator`, 127.0.0.1:6090),
-  `make tunnel` now forwards 6090 as well.
-- **Tests** — 16 more stdlib cases (35 total): triggers, HMAC, store lifecycle and supersede,
-  comment rendering, worker success/failure/timeout/supersede paths.
-- Version 0.5.0.
-
 ## 0.4.0 — app contract and prepare phase
 
 - **`.tivm.yml` contract.** A repo declares how to prepare and run its app (`app.dir`, `app.setup`,
