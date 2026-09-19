@@ -3,6 +3,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import threading
 import time
 
@@ -783,8 +784,8 @@ class Runner:
         try:
             if self.app_request:
                 self._prepare()
-                if self.prepare_error and not self.tasks:
-                    self.tasks = ["the app under test boots"]
+                if not self.tasks:
+                    self.tasks = ["the app under test starts and its flows run"]
             for index, task in enumerate(list(self.tasks), start=1):
                 if self.stop_flag:
                     break
