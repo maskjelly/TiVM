@@ -81,7 +81,7 @@ Rules:
 
 
 def plan(task, elements, windows, focused_window, terminal_output, history, screenshot_path,
-         plan_state=None, memory="", last_check=""):
+         plan_state=None, memory="", last_check="", app=""):
     element_lines = []
     for e in elements[: config.OPENAI_MAX_ELEMENTS]:
         focus = " (focused)" if e.get("focused") else ""
@@ -100,6 +100,8 @@ def plan(task, elements, windows, focused_window, terminal_output, history, scre
         "terminal_output": terminal_output or [],
         "recent_actions": history[-6:],
     }
+    if app:
+        state["app_under_test"] = app
     payload = {
         "model": config.OPENAI_PLANNER_MODEL,
         "response_format": {"type": "json_object"},

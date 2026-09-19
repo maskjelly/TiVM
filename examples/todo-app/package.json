@@ -1,0 +1,7 @@
+{
+  "name": "tivm-todo-app",
+  "private": true,
+  "scripts": {
+    "dev": "bun server.ts"
+  }
+}

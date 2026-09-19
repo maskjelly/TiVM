@@ -137,7 +137,7 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 | phase | deliverable | acceptance |
 | ----- | ----------- | ---------- |
 | **P0 done** | rove provisioned; hosted compose profile; remote deploy and tunnel targets; per-task video; static report | a suite on rove yields `task-N.mp4` + `report.html`, watched from the Mac over the tunnel — **verified 2026-09-19**: 1/2 flows passed, both clips reviewed, report served over `make tunnel` |
-| P1 | `.tivm.yml` contract + `prepare` phase (clone PR head, setup, run, ready check) with inference fallback | a real repo at a real PR boots its app in the box and a flow passes or fails correctly |
+| **P1 done** | `.tivm.yml` contract, prepare phase (clone at ref/PR, setup, launch, ready check, Firefox), inference fallback, `/api/prepare`, contract flows as the suite | the P1 PR itself is tested by rove against `examples/todo-app` on the PR branch (todo flows pass/fail correctly, report carries the app info) |
 | P2 | GitHub App, queue, concurrency 2, cancel-on-push, sticky comment + check, report URL | `@tivm test` on a real PR produces a report link in under 10 minutes; the panel stays private |
 | P3 | replay executor, divergence fallback, LLM proxy, dep caches, budgets | replay flow < 60 s at ~0 planner tokens; a seeded UI regression is still caught |
 | P4 | nav/link enumeration → generated smoke flows; diff→flows mapping | all top-level surfaces of a reference app are covered within budget, skips reported |

@@ -20,7 +20,7 @@ done
 rsync -az "$ROOT/docker-compose.yml" "$ROOT/Makefile" "$ROOT/.env.example" "$ROOT/.env" "$HOST:$DEST/"
 
 echo "-- starting (bind 127.0.0.1, firewall is the outer layer)"
-ssh "$HOST" "cd '$DEST' && TIVM_BIND=127.0.0.1 docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml up -d --build"
+ssh "$HOST" "cd '$DEST' && TIVM_BIND=127.0.0.1 docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml up -d --build --force-recreate"
 
 ssh "$HOST" "docker image prune -f >/dev/null 2>&1 || true"
 echo "-- deployed: ssh -L 6081:127.0.0.1:6081 -L 6080:127.0.0.1:6080 $HOST   (or: make tunnel)"

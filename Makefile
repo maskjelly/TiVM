@@ -64,6 +64,9 @@ check:
 probe:
 	docker compose exec desktop python3 -c "import os,requests,json; r=requests.post('https://api.typesafe.ai/v1/systemone', json={'state':'hello','model':'jev-latest','questions':{'ok':{'type':'noul','instructions':'Is this text friendly?'}}}, headers={'Authorization':'Bearer '+os.environ['TYPESAFE_API_KEY']}, timeout=60); print(json.dumps(r.json(), indent=2))"
 
+test:
+	docker compose exec desktop python3 -m unittest discover -s /app/tests -v
+
 # --- hosted runner (rove) --------------------------------------------------
 ROVE ?= rove
 
@@ -74,7 +77,7 @@ rove-deploy:
 	TIVM_HOST=$(ROVE) bash deploy/deploy.sh
 
 rove-up:
-	ssh $(ROVE) 'cd /opt/tivm && TIVM_BIND=127.0.0.1 docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml up -d --build'
+	ssh $(ROVE) 'cd /opt/tivm && TIVM_BIND=127.0.0.1 docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml up -d --build --force-recreate'
 
 rove-down:
 	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml down'
@@ -87,6 +90,9 @@ rove-status:
 
 rove-check:
 	ssh $(ROVE) "cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml exec -T -w /app desktop python3 -c \"import agent.video, agent.report; import shutil; print('modules ok'); print('ffmpeg', shutil.which('ffmpeg') or 'MISSING')\""
+
+rove-test:
+	ssh $(ROVE) 'cd /opt/tivm && docker compose -f docker-compose.yml -f deploy/docker-compose.rove.yml exec -T -w /app desktop python3 -m unittest discover -s /app/tests'
 
 tunnel:
 	ssh -N -o ExitOnForwardFailure=yes -L 6081:127.0.0.1:6081 -L 6080:127.0.0.1:6080 $(ROVE)

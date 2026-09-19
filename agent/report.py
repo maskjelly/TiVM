@@ -170,8 +170,17 @@ def write(run_dir, name="report.html"):
     tokens = run.get("tokens") or {}
     started = run.get("started_at")
     when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(started)) if started else ""
-    error = run.get("error")
-    error_html = f'<p class="reason">suite error: {_esc(error)}</p>' if error else ""
+    error = run.get("error") or run.get("prepare_error")
+    error_html = f'<p class="reason">error: {_esc(error)}</p>' if error else ""
+    app = run.get("app") or {}
+    app_html = ""
+    if app:
+        label = app.get("repo") or app.get("dir") or "app under test"
+        sha = f"@{app['sha']}" if app.get("sha") else ""
+        app_html = (
+            f'<p class="sub">app: {_esc(label)}{_esc(sha)} · {_esc(app.get("url"))}'
+            f' · {_esc(app.get("source"))} · ready in {_esc(app.get("ready_s"))}s</p>'
+        )
     cards = "".join(_task_card(i, t, timeline, run_files) for i, t in enumerate(tasks, start=1))
     page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -180,6 +189,7 @@ def write(run_dir, name="report.html"):
 <body><div class="wrap">
 <div class="head"><div><h1>TiVM run report</h1>
 <p class="sub">{_esc(run.get('run_id'))} · {when}</p>
+{app_html}
 <div class="stats">
 <div><b>{passed_count}/{len(tasks)}</b><span>flows passed</span></div>
 <div><b>{_esc(run.get('duration_s'))}s</b><span>duration</span></div>

@@ -26,6 +26,7 @@
 | `config.py` | every question, threshold and model setting — the single file to review |
 | `loop.py` | the Runner: perceive → decide → act → settle, suite execution, verdicts, timeline, artifacts |
 | `a11y.py` | AT-SPI walk (roles, names, extents, focused/value), widget invocation |
+| `apps.py` | `.tivm.yml` app contract, inference fallback, clone at ref/PR, setup, launch, readiness |
 | `vision.py` | scrot capture, OCR fallback, pixel-diff thumbs, annotated frames |
 | `video.py` | per-run screen recording (ffmpeg x11grab) and per-task clip cutting |
 | `report.py` | static `report.html` from run.json + timeline + video (what PR authors see) |
@@ -111,13 +112,15 @@ but still export everything captured so far.
 | `TIVM_VIDEO_FAILURE_WINDOW` | `25` | seconds kept in `task-N-failure.mp4` |
 | `TIVM_BIND` | `0.0.0.0` | host bind address for 6080/6081; hosted deploys use `127.0.0.1` |
 | `TIVM_RUNS_DIR` | `/app/runs` | artifact directory inside the container |
+| `TIVM_PROJECTS_DIR` | `/root/projects` | where repos are cloned for the prepare phase |
 | `SCREEN_W` / `SCREEN_H` | `1280` / `800` | desktop resolution |
 
 ## HTTP API
 
 | method | path | purpose |
 | ------ | ---- | ------- |
-| `POST` | `/api/run` | `{tasks: [...], max_steps?}` → start a suite |
+| `POST` | `/api/run` | `{tasks: [...], max_steps?, app?}` → start a suite; with `app` the repo is prepared first, and with no `tasks` the contract's flows are the suite |
+| `POST` | `/api/prepare` | `{repo, ref?\|pr?, dir?, run?, url?, ...}` → clone, setup, launch and wait for readiness; no model calls |
 | `POST` | `/api/stop` | stop after the current action |
 | `GET` | `/api/state` | live state: status, timeline, plan, frame, tokens |
 | `GET` | `/api/system` | version, uptime, CPU, memory, disk, runs on disk |

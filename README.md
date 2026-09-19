@@ -106,6 +106,40 @@ curl -X POST localhost:6081/api/run \
 
 With `TIVM_TOKEN=secret`: add `-H 'Authorization: Bearer secret'`.
 
+### Testing a repo (app under test)
+
+Point a run at a repository and TiVM boots the app for you: it clones the ref (branch, tag or PR),
+reads `.tivm.yml`, installs and starts the app, waits until it answers, opens it in Firefox and
+then runs the tasks against it. With no `tasks`, the contract's flows are the suite.
+
+```sh
+curl -X POST localhost:6081/api/run -H 'Content-Type: application/json' -d '{
+  "app": {"repo": "maskjelly/TiVM", "ref": "main"},
+  "tasks": ["add a todo item \"write docs\" and confirm it appears"]
+}'
+```
+
+`.tivm.yml` (all keys optional except a way to run and a URL):
+
+```yaml
+tivm: 1
+app:
+  dir: examples/todo-app          # where the app lives in the repo
+  setup: ["bun install"]          # runs before the app, cached between runs
+  run: ["bun server.ts"]          # started detached; logs in prepare.log
+  url: "http://localhost:8080"
+  ready: "curl -sf http://localhost:8080/healthz"
+flows:                            # used when the run has no tasks
+  - name: add-todo
+    steps: In the Todos app, add a todo item "write docs" and confirm it appears in the list
+    expect: the item is visible in the list
+```
+
+No contract? A `package.json` is enough: the lockfile or `packageManager` picks the installer,
+`dev`/`start`/`preview`/`serve` picks the script, framework ports or `--port` pick the URL.
+`POST /api/prepare` runs just clone → setup → start → ready (no tests, no model calls) and returns
+the app info; useful when wiring a new repo.
+
 ## What happens during a run
 
 ```
