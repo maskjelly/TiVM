@@ -137,7 +137,7 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 | phase | deliverable | acceptance |
 | ----- | ----------- | ---------- |
 | **P0 done** | rove provisioned; hosted compose profile; remote deploy and tunnel targets; per-task video; static report | a suite on rove yields `task-N.mp4` + `report.html`, watched from the Mac over the tunnel — **verified 2026-09-19**: 1/2 flows passed, both clips reviewed, report served over `make tunnel` |
-| **P1 done** | `.tivm.yml` contract, prepare phase (clone at ref/PR, setup, launch, ready check, Firefox), inference fallback, `/api/prepare`, contract flows as the suite | the P1 PR itself is tested by rove against `examples/todo-app` on the PR branch (todo flows pass/fail correctly, report carries the app info) |
+| **P1 done** | `.tivm.yml` contract, prepare phase (clone at ref/PR, setup, launch, ready check, Firefox), inference fallback, `/api/prepare`, contract flows as the suite | **verified 2026-09-19**: rove cloned the P1 branch, prepared `examples/todo-app` (ready in 2.1 s) and both contract flows passed — add-todo (6 steps) and complete-todo (5 steps), 85 s and ~21k tokens total, per-flow video and report reviewed |
 | P2 | GitHub App, queue, concurrency 2, cancel-on-push, sticky comment + check, report URL | `@tivm test` on a real PR produces a report link in under 10 minutes; the panel stays private |
 | P3 | replay executor, divergence fallback, LLM proxy, dep caches, budgets | replay flow < 60 s at ~0 planner tokens; a seeded UI regression is still caught |
 | P4 | nav/link enumeration → generated smoke flows; diff→flows mapping | all top-level surfaces of a reference app are covered within budget, skips reported |
@@ -174,6 +174,14 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
   Thunar — the screen stays black. Plain fork/exec is unaffected. `deploy/docker-compose.rove.yml`
   drops seccomp for the desktop container so runs work today. Proper fix, needs one reboot:
   `apt-get install -y linux-generic-hwe-20.04 && reboot`, then delete that override.
+- **Bun is broken on kernel 5.4.** Bun 1.4 executes trivial scripts, but on this kernel its event
+  loop spins at 100% CPU and never binds a socket, so any `Bun.serve` app looks hung. The demo app
+  is Node (`node:http`) for this reason, and Bun-based PRs cannot be tested until the HWE kernel is
+  booted. Node 24 is in the image and works normally.
+- Windows are addressed by element id first; when the planner falls back to `x/y`, coordinates are
+  in the downscaled screenshot's space and are mapped back to screen pixels
+  (`openai_client.to_screen`). A raw click on a 1024-wide screenshot used to land ~20% off. This
+  bug alone made the second todo flow fail before it was fixed.
 - The Docker convenience script refuses focal (packages it wants do not exist there); the
   provision script installs `docker-ce`, `docker-ce-cli`, `containerd.io`,
   `docker-compose-plugin` and `docker-buildx-plugin` from Docker's own apt repo instead.

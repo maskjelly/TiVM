@@ -16,8 +16,11 @@ file.
 - **Inference fallback.** Without a contract, `package.json` is enough: lockfile or
   `packageManager` picks the installer, `dev`/`start`/`preview`/`serve` picks the script, and
   framework ports (vite, next, astro, ...) or an explicit `--port` pick the URL.
-- **Demo app + dogfooding.** `examples/todo-app` (zero-dependency Bun app) with the repo's own
+- **Demo app + dogfooding.** `examples/todo-app` (zero-dependency Node app) with the repo's own
   `.tivm.yml`: TiVM PRs can be tested by TiVM against its own demo.
+- **Pixel clicks are mapped correctly.** The planner sees a screenshot downscaled to 1024 px wide;
+  its `x/y` answers are now scaled back to real screen pixels instead of being used raw (a click
+  meant for the todo input used to land on the tab strip, ~20% off).
 - **Determinism.** Firefox enterprise policies suppress first-run onboarding and the
   default-browser prompt; `tests/` (15 stdlib unittest cases) runs in the container via `make test`
   or `make rove-test`.
