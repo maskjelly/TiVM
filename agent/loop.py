@@ -6,7 +6,7 @@ import shutil
 import threading
 import time
 
-from . import a11y, actions, config, openai_client, ts, vision
+from . import a11y, actions, config, openai_client, report, ts, video, vision
 
 
 def _norm(text):
@@ -106,6 +106,8 @@ class Runner:
         self.last_check = ""
         self.last_terminal = []
         self.last_elements = []
+        self.video_rec = None
+        self.t0 = None
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
@@ -114,6 +116,9 @@ class Runner:
 
     def emit(self, kind, **fields):
         entry = {"kind": kind, "at": time.strftime("%H:%M:%S")}
+        if self.t0 is not None:
+            entry["t"] = round(time.monotonic() - self.t0, 2)
+        entry["task_index"] = self.task_index
         entry.update(fields)
         self.timeline.append(entry)
         self.timeline = self.timeline[-400:]
@@ -158,6 +163,59 @@ class Runner:
         with open(os.path.join(run_dir, "run.json"), "w") as fh:
             json.dump(payload, fh, indent=1)
 
+    def _start_video(self):
+        run_dir = self._run_dir()
+        if not self.run_id or not os.path.isdir(run_dir):
+            return
+        if config.VIDEO and not video.available():
+            self.log("video disabled: ffmpeg not found in this image")
+            return
+        self.video_rec = video.start(os.path.join(run_dir, "screen.mp4"))
+        if self.video_rec is not None:
+            self.log("video recording started (screen.mp4)")
+
+    def _stop_video(self):
+        if self.video_rec is None:
+            return
+        rec, self.video_rec = self.video_rec, None
+        rec.stop()
+        size = os.path.getsize(rec.path) if os.path.exists(rec.path) else 0
+        self.log(f"video recording stopped ({size // 1024} KB, {rec.elapsed():.0f}s)")
+
+    def _cut_task_videos(self):
+        run_dir = self._run_dir()
+        source = os.path.join(run_dir, "screen.mp4")
+        if not os.path.exists(source):
+            return
+        for index, result in enumerate(self.results, start=1):
+            info = result.get("video")
+            if not info:
+                continue
+            start, end = info["start_s"], info["end_s"]
+            if video.cut(source, os.path.join(run_dir, info["file"]), start, end):
+                self.log(f"video: {info['file']} ({end - start:.0f}s)")
+            else:
+                result.pop("video", None)
+                continue
+            if not result["passed"]:
+                fail_start = max(start, end - config.VIDEO_FAILURE_WINDOW)
+                clip = f"task-{index}-failure.mp4"
+                if video.cut(source, os.path.join(run_dir, clip), fail_start, end):
+                    info["failure_file"] = clip
+                    info["failure_window"] = int(end - fail_start)
+
+    def _write_report(self):
+        run_dir = self._run_dir()
+        if not self.run_id or not os.path.isdir(run_dir):
+            return
+        try:
+            path = report.write(run_dir)
+        except Exception as e:
+            self.log(f"report generation failed: {e}")
+            return
+        if path:
+            self.log("report: report.html")
+
     def start(self, tasks, max_steps=None):
         with self.lock:
             if self.running:
@@ -170,6 +228,7 @@ class Runner:
             self.running = True
             self.stop_flag = False
             self.started_at = time.time()
+            self.t0 = time.monotonic()
             self.run_id = time.strftime("%Y%m%d-%H%M%S")
             try:
                 os.makedirs(os.path.join(config.RUNS_DIR, self.run_id), exist_ok=True)
@@ -668,6 +727,7 @@ class Runner:
         )
 
     def _run(self):
+        self._start_video()
         try:
             for index, task in enumerate(list(self.tasks), start=1):
                 if self.stop_flag:
@@ -677,6 +737,7 @@ class Runner:
                 self.log(f"--- task {index}/{len(self.tasks)}: {task}")
                 self.emit("task_start", index=index, total=len(self.tasks), task=task)
                 task_started = time.time()
+                video_started = self.video_rec.elapsed() if self.video_rec else 0.0
                 tokens_before = (self.tokens_in, self.tokens_out)
                 openai_before = self.openai_tokens
 
@@ -687,6 +748,14 @@ class Runner:
                     self.error = str(e)
                     self.log(f"error: {e}")
 
+                if self.video_rec is not None:
+                    video_ended = self.video_rec.elapsed()
+                    result["video"] = {
+                        "file": f"task-{index}.mp4",
+                        "start_s": round(video_started, 2),
+                        "end_s": round(video_ended, 2),
+                        "duration_s": round(video_ended - video_started, 1),
+                    }
                 result["tokens"] = {
                     "input": self.tokens_in - tokens_before[0],
                     "output": self.tokens_out - tokens_before[1],
@@ -724,10 +793,13 @@ class Runner:
             self.passed = (
                 len(self.results) == len(self.tasks) and all(r["passed"] for r in self.results)
             )
+            self._stop_video()
+            self._cut_task_videos()
             try:
                 self._write_run_json()
             except OSError as e:
                 self.log(f"run.json save failed: {e}")
+            self._write_report()
 
     def snapshot(self):
         with self.lock:

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       curl \
       dbus-x11 \
       epiphany-browser \
+      ffmpeg \
       fonts-dejavu-core \
       fonts-liberation \
       gir1.2-atspi-2.0 \

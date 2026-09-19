@@ -13,8 +13,8 @@ services:
       SCREEN_H: ${SCREEN_H:-800}
       DISPLAY: ":99"
     ports:
-      - "6080:6080"
-      - "6081:6081"
+      - "${TIVM_BIND:-0.0.0.0}:6080:6080"
+      - "${TIVM_BIND:-0.0.0.0}:6081:6081"
     volumes:
       - ./agent:/app/agent:ro
       - ./runs:/app/runs

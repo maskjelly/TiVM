@@ -27,6 +27,8 @@
 | `loop.py` | the Runner: perceive → decide → act → settle, suite execution, verdicts, timeline, artifacts |
 | `a11y.py` | AT-SPI walk (roles, names, extents, focused/value), widget invocation |
 | `vision.py` | scrot capture, OCR fallback, pixel-diff thumbs, annotated frames |
+| `video.py` | per-run screen recording (ffmpeg x11grab) and per-task clip cutting |
+| `report.py` | static `report.html` from run.json + timeline + video (what PR authors see) |
 | `actions.py` | xdotool wrappers (click, type, key, scroll) |
 | `openai_client.py` | planner call (screenshot + plan/memory/check) and vision OCR |
 | `ts.py` | TypeSafe HTTP client with retries (429/5xx) |
@@ -104,6 +106,10 @@ but still export everything captured so far.
 | `TIVM_BLOCKED_THRESHOLD` / `TIVM_MIN_CONFIDENCE` | `0.70` / `0.35` | Jev planner thresholds |
 | `TIVM_TOKEN` | empty | if set, mutating endpoints require `Authorization: Bearer <token>` |
 | `TIVM_KEEP_RUNS` | `20` | artifact folders kept on disk |
+| `TIVM_VIDEO` | `1` | record the desktop with ffmpeg (needs ffmpeg in the image) |
+| `TIVM_VIDEO_FPS` / `TIVM_VIDEO_CRF` | `10` / `30` | capture rate and quality |
+| `TIVM_VIDEO_FAILURE_WINDOW` | `25` | seconds kept in `task-N-failure.mp4` |
+| `TIVM_BIND` | `0.0.0.0` | host bind address for 6080/6081; hosted deploys use `127.0.0.1` |
 | `TIVM_RUNS_DIR` | `/app/runs` | artifact directory inside the container |
 | `SCREEN_W` / `SCREEN_H` | `1280` / `800` | desktop resolution |
 
@@ -118,6 +124,7 @@ but still export everything captured so far.
 | `GET` | `/api/runs` | completed runs (id, verdict, duration, tokens) |
 | `GET` | `/api/runs/{id}` | run summary, timeline, artifact file list |
 | `GET` | `/api/result` | verdict payload of the current/last run |
+| `GET` | `/api/runs/{id}/report` | build/return the static report page |
 | `GET` | `/runs/{id}/...` | artifact files (final screenshots, JSON) |
 
 ## Persistence
