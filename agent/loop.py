@@ -584,7 +584,9 @@ class Runner:
                 }
                 try:
                     if plan.get("x") is not None and plan.get("y") is not None:
-                        answers["point"] = (int(plan["x"]), int(plan["y"]))
+                        answers["point"] = openai_client.to_screen(
+                            plan["x"], plan["y"], float(plan.get("_scale") or 1.0)
+                        )
                 except (TypeError, ValueError):
                     pass
                 done = 1.0 if plan.get("done") else 0.0

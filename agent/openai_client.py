@@ -45,6 +45,31 @@ def image_data_url(path, max_w=1024, quality=80):
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+def image_size(path, max_w=1024):
+    with Image.open(path) as im:
+        width, height = im.width, im.height
+    if width > max_w:
+        height = int(height * max_w / width)
+        width = max_w
+    return width, height
+
+
+def image_scale(path, max_w=1024):
+    with Image.open(path) as im:
+        width = im.width or 1
+    return min(1.0, max_w / width)
+
+
+def to_screen(x, y, scale):
+    scale = scale or 1.0
+    sx = round(float(x) / scale)
+    sy = round(float(y) / scale)
+    return (
+        max(0, min(config.SCREEN_W - 1, sx)),
+        max(0, min(config.SCREEN_H - 1, sy)),
+    )
+
+
 PLANNER_SYSTEM = """You are the orchestrator of a Linux desktop agent. You get a screenshot, the
 task, the detected on-screen elements (id, role, text, position), open windows, terminal output,
 recent actions, and your own plan, memory and last self-check.
@@ -65,7 +90,8 @@ Rules:
   your previous check, so verify it against the screen before moving on; if it did not hold,
   fix it first instead of continuing the plan.
 - For clicks, "target" must be an element id from the list (never empty), or supply "x"/"y" pixels.
-  Prefer a listed element id; use x/y only when no element fits.
+  Prefer a listed element id; use x/y only when no element fits. x/y are in the screenshot's pixel
+  space (the state states its size), not the real screen's.
 - For "type", put the complete exact text in "text" (a full shell command if needed). It goes to
   whatever has keyboard focus; focus is marked "has keyboard focus" in the element list. If the
   window you need is already focused, just type - do not click first.
@@ -102,6 +128,8 @@ def plan(task, elements, windows, focused_window, terminal_output, history, scre
     }
     if app:
         state["app_under_test"] = app
+    image_w, image_h = image_size(screenshot_path)
+    state["screenshot"] = f"{image_w}x{image_h} pixels; x/y coordinates you return are in this space"
     payload = {
         "model": config.OPENAI_PLANNER_MODEL,
         "response_format": {"type": "json_object"},
@@ -130,6 +158,7 @@ def plan(task, elements, windows, focused_window, terminal_output, history, scre
         parsed = json.loads(content)
     except json.JSONDecodeError:
         raise OpenAIError(f"planner returned non-JSON: {content[:200]}")
+    parsed["_scale"] = image_scale(screenshot_path)
     return parsed, data.get("usage", {})
 
 
