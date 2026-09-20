@@ -7,7 +7,7 @@ import subprocess
 import threading
 import time
 
-from . import a11y, actions, apps, config, openai_client, report, ts, video, vision
+from . import a11y, actions, apps, config, openai_client, replay, report, ts, video, vision
 
 
 def _norm(text):
@@ -115,6 +115,9 @@ class Runner:
         self.app = {}
         self.app_context = ""
         self.prepare_error = ""
+        self.trace_steps = []
+        self.baseline_texts = None
+        self.last_point = None
 
     def log(self, message):
         stamp = time.strftime("%H:%M:%S")
@@ -253,6 +256,8 @@ class Runner:
         )
         self.emit("prepare_ready", url=info["url"], source=info["source"], dir=info["dir"], sha=info["sha"], ready_s=info["ready_s"])
         try:
+            apps.close_browsers()
+            time.sleep(0.5)
             subprocess.Popen(
                 ["firefox", info["url"]],
                 env={**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")},
@@ -261,6 +266,15 @@ class Runner:
             )
             self.log(f"firefox opened at {info['url']}")
             time.sleep(4)
+            for cmd in (
+                ["xdotool", "search", "--onlyvisible", "--name", "Firefox", "windowactivate", "--sync"],
+                ["wmctrl", "-a", "Firefox"],
+            ):
+                try:
+                    subprocess.run(cmd, env={**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")},
+                                   capture_output=True, timeout=10)
+                except (OSError, subprocess.TimeoutExpired):
+                    continue
         except OSError as e:
             self.log(f"could not open firefox: {e}")
 
@@ -301,6 +315,7 @@ class Runner:
         self.last_label = f"task {self.task_index}: {action} -> {target}"
         self._fallback_click = None
         self.last_typed = ""
+        self.last_point = None
 
         if action in ("click", "double_click"):
             point = None
@@ -312,11 +327,8 @@ class Runner:
                     and a11y.invoke(node)
                 ):
                     self.log(f"invoked {target} via accessibility tree")
-                    self._fallback_click = (
-                        element["x"] + element["w"] // 2,
-                        element["y"] + element["h"] // 2,
-                        action,
-                    )
+                    self.last_point = (element["x"] + element["w"] // 2, element["y"] + element["h"] // 2)
+                    self._fallback_click = (*self.last_point, action)
                     return f'invoked {element.get("role", "widget")} "{element["text"]}"'
                 point = (element["x"] + element["w"] // 2, element["y"] + element["h"] // 2)
             elif answers.get("point"):
@@ -331,6 +343,7 @@ class Runner:
                     self.target_note = True
                     self.target_note_count += 1
                     return "no click target chosen"
+            self.last_point = point
             if action == "click":
                 actions.click(*point)
             else:
@@ -338,6 +351,8 @@ class Runner:
             return f"{action} at {point[0]},{point[1]}"
 
         if action == "type":
+            if element is not None:
+                self.last_point = (element["x"] + element["w"] // 2, element["y"] + element["h"] // 2)
             forced = str(answers.get("text") or "").strip()
             candidates = [forced] if forced else type_candidates(task)
             remaining = [c for c in candidates if c not in self.typed]
@@ -410,6 +425,104 @@ class Runner:
                 )
         self.log(f"openai vision: {len(out)} text items")
         return out
+
+    def _replay_perceive(self):
+        vision.capture()
+        return self._perceive()
+
+    def _replay_settle(self, action=None):
+        timeout = config.COMMAND_SETTLE_TIMEOUT if action in ("type", "key", "wait") else None
+        self._settle(None, timeout)
+
+    def _app_rect(self):
+        best = None
+        for window in vision.windows():
+            if "firefox" not in (window.get("title") or "").lower():
+                continue
+            if window.get("w", 0) < 300 or window.get("h", 0) < 300:
+                continue
+            area = window["w"] * window["h"]
+            if best is None or area > best[0]:
+                best = (
+                    area,
+                    (
+                        window["x"],
+                        window["y"] + config.APP_TOP_INSET,
+                        window["w"],
+                        max(50, window["h"] - config.APP_TOP_INSET),
+                    ),
+                )
+        return best[1] if best else None
+
+    def _app_window_origin(self):
+        for window in vision.windows():
+            if "firefox" not in (window.get("title") or "").lower():
+                continue
+            if window.get("w", 0) < 300 or window.get("h", 0) < 300:
+                continue
+            return (window["x"], window["y"])
+        return None
+
+    @staticmethod
+    def _inside(point, rect):
+        if rect is None:
+            return True
+        if not point:
+            return False
+        x, y = point[0], point[1]
+        return rect[0] <= x <= rect[0] + rect[2] and rect[1] <= y <= rect[1] + rect[3]
+
+    def _focus_app(self):
+        env = {**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":99")}
+        for cmd in (
+            ["xdotool", "search", "--onlyvisible", "--name", "Firefox", "windowactivate", "--sync"],
+            ["wmctrl", "-a", "Firefox"],
+        ):
+            try:
+                subprocess.run(cmd, env=env, capture_output=True, timeout=10)
+            except (OSError, subprocess.TimeoutExpired):
+                continue
+
+    def _replay_texts(self):
+        vision.capture()
+        rect = self._app_rect()
+        if not rect:
+            self.log("replay: no browser window found; assertions unavailable")
+            return []
+        texts = []
+        if config.REPLAY_OCR:
+            try:
+                texts = [e.get("text", "") for e in vision.ocr_elements()
+                         if self._inside((e["x"] + e.get("w", 0) // 2, e["y"] + e.get("h", 0) // 2), rect)]
+            except Exception as e:
+                self.log(f"replay: OCR failed: {e}")
+        return texts
+
+    def _record_trace(self, task, final_texts):
+        if not (config.REPLAY and self.app_context and self.trace_steps and not self.prepare_error):
+            return
+        rect = self._app_rect()
+        steps = []
+        for step in self.trace_steps:
+            if not steps and not self._inside(step.get("point"), rect):
+                continue
+            steps.append(step)
+        if not steps:
+            self.log("replay: the flow never touched the app window; not recording")
+            return
+        try:
+            for _ in range(3):
+                if replay.evidence_ok(steps, final_texts):
+                    break
+                time.sleep(1.0)
+                final_texts = self._replay_texts()
+            replay.save(
+                task, self.app.get("url", ""), steps,
+                self.baseline_texts, final_texts, log=self.log,
+                window_origin=self._app_window_origin(),
+            )
+        except OSError as e:
+            self.log(f"replay: could not save the trace: {e}")
 
     def _perceive(self):
         a11y_elements = a11y.elements()
@@ -518,6 +631,27 @@ class Runner:
         self.last_terminal = []
         self.last_elements = []
         note = "This is the first step."
+        self.trace_steps = []
+        self.baseline_texts = None
+        self.last_point = None
+
+        if config.REPLAY and self.app_context and not self.prepare_error:
+            trace = replay.load(task, self.app.get("url", ""))
+            if trace:
+                self.log(f"replay: {len(trace['steps'])} recorded steps for this task")
+                status, detail = replay.run(
+                    trace, self._replay_perceive, self._replay_settle,
+                    log=self.log, texts=self._replay_texts, origin=self._app_window_origin(),
+                    focus=self._focus_app,
+                )
+                self.emit("replay", task=task, steps=len(trace["steps"]), result=status, detail=detail)
+                if status == "ok":
+                    self.log(f"replay reproduced the task ({detail}), no planner calls")
+                    return {
+                        "task": task, "passed": True, "steps": len(trace["steps"]),
+                        "reason": f"replay: {detail} reproduced", "mode": "replay",
+                    }
+                self.log(f"replay diverged ({detail}); exploring with the planner")
 
         for step in range(1, (self.max_steps or 10**9) + 1):
             if self.stop_flag:
@@ -534,6 +668,8 @@ class Runner:
             last_thumb = current_thumb
 
             elements = self._perceive()
+            if self.baseline_texts is None:
+                self.baseline_texts = self._replay_texts()
             perceive_ms = (time.perf_counter() - started) * 1000
             a11y_count = sum(1 for e in elements if e.get("source") == "a11y")
             self.log(
@@ -633,6 +769,7 @@ class Runner:
             if done >= config.DONE_THRESHOLD:
                 self.log("task complete according to Jev")
                 self.emit("done", n=step, action="done", reason=f"done={done:.2f}")
+                self._record_trace(task, [e.get("text", "") for e in elements])
                 return {"task": task, "passed": True, "steps": step, "reason": f"complete (done={done:.2f})"}
 
             if blocked >= config.BLOCKED_THRESHOLD:
@@ -666,6 +803,17 @@ class Runner:
 
             started = time.perf_counter()
             outcome = self._execute(answers, elements, task)
+            self.trace_steps.append({
+                "action": action,
+                "target_text": (
+                    f'{self.last_element.get("role", "widget")} "{self.last_element.get("text", "")}"'
+                    if self.last_element and target not in ("", "no_text_target")
+                    else ""
+                ),
+                "typed": self.last_typed,
+                "key": (answers.get("key") or {}).get("choice") if isinstance(answers.get("key"), dict) else answers.get("key"),
+                "point": list(self.last_point) if self.last_point else None,
+            })
             act_ms = (time.perf_counter() - started) * 1000
             self.log(f"-> {outcome}")
             history.append(f"step {step}: {outcome} ({'screen changed' if changed else 'screen unchanged'})")
@@ -854,6 +1002,7 @@ class Runner:
             )
             try:
                 apps.stop_all()
+                apps.close_browsers()
             except Exception:
                 pass
             self._stop_video()

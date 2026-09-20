@@ -135,6 +135,10 @@ flows:                            # used when the run has no tasks
     expect: the item is visible in the list
 ```
 
+Flows that pass are recorded as traces and replayed on later runs without any model calls; a
+divergence (missing target, wrong final state) falls back to the planner automatically.
+`TIVM_REPLAY=0` turns that off. Traces live in `./traces` on the host.
+
 No contract? A `package.json` is enough: the lockfile or `packageManager` picks the installer,
 `dev`/`start`/`preview`/`serve` picks the script, framework ports or `--port` pick the URL.
 `POST /api/prepare` runs just clone → setup → start → ready (no tests, no model calls) and returns

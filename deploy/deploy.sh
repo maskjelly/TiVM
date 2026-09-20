@@ -13,7 +13,7 @@ if [ ! -f "$ROOT/.env" ]; then
 fi
 
 echo "-- syncing code to $HOST:$DEST"
-ssh "$HOST" "mkdir -p '$DEST'"
+ssh "$HOST" "mkdir -p '$DEST' '$DEST/traces'"
 for dir in agent docker deploy examples tests orchestrator; do
   rsync -az --delete --exclude '__pycache__' "$ROOT/$dir/" "$HOST:$DEST/$dir/"
 done

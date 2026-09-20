@@ -19,6 +19,7 @@ services:
       - ./agent:/app/agent:ro
       - ./tests:/app/tests:ro
       - ./runs:/app/runs
+      - ./traces:/app/traces
     logging:
       driver: json-file
       options:

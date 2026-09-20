@@ -75,10 +75,32 @@ RUN ARCH=$(dpkg --print-architecture) \
        > /usr/share/applications/firefox.desktop
 
 # deterministic customer-facing runs: no onboarding, no default-browser prompt
-RUN mkdir -p /opt/firefox/distribution \
+RUN mkdir -p /opt/firefox/distribution /opt/firefox/defaults/pref \
   && printf '%s\n' \
        '{"policies":{"OverrideFirstRunPage":"","OverridePostUpdatePage":"","DontCheckDefaultBrowser":true,"DisplayBookmarksToolbar":"never","UserMessaging":{"SkipOnboarding":true,"ExtensionRecommendations":false,"FeatureRecommendations":false,"UrlbarInterventions":false}}}' \
-       > /opt/firefox/distribution/policies.json
+       > /opt/firefox/distribution/policies.json \
+  && printf '%s\n' \
+       '// TiVM: enable the autoconfig file' \
+       'pref("general.config.filename", "firefox.cfg");' \
+       'pref("general.config.obscure_value", 0);' \
+       > /opt/firefox/defaults/pref/autoconfig.js \
+  && printf '%s\n' \
+       '// TiVM: the first line of this file is ignored by Firefox' \
+       'pref("browser.aboutwelcome.enabled", false);' \
+       'pref("browser.startup.homepage_override.mstone", "ignore");' \
+       'pref("browser.shell.checkDefaultBrowser", false);' \
+       'pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);' \
+       'pref("datareporting.policy.dataSubmissionEnabled", false);' \
+       'pref("toolkit.telemetry.reportingpolicy.firstRun", false);' \
+       'pref("browser.startup.firstrunSkipsHomepage", true);' \
+       'pref("startup.homepage_welcome_url", "");' \
+       'pref("startup.homepage_welcome_url.additional", "");' \
+       'pref("browser.messaging-system.whatsNewPanel.enabled", false);' \
+       'pref("app.update.enabled", false);' \
+       'pref("extensions.screenshots.disabled", true);' \
+       'pref("browser.sessionstore.resume_from_crash", false);' \
+       'pref("browser.sessionstore.max_resumed_crashes", 0);' \
+       > /opt/firefox/firefox.cfg
 
 RUN git config --system url."https://github.com/".insteadOf "git@github.com:" \
   && git config --system user.email "agent@tivm.local" \

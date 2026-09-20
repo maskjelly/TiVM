@@ -111,6 +111,8 @@ but still export everything captured so far.
 | `TIVM_VIDEO_FPS` / `TIVM_VIDEO_CRF` | `10` / `30` | capture rate and quality |
 | `TIVM_VIDEO_FAILURE_WINDOW` | `25` | seconds kept in `task-N-failure.mp4` |
 | `TIVM_BIND` | `0.0.0.0` | host bind address for 6080/6081; hosted deploys use `127.0.0.1` |
+| `TIVM_REPLAY` | `1` | replay a recorded trace for a repeated task instead of calling the planner |
+| `TIVM_TRACES_DIR` | `/app/traces` | trace storage (host `./traces`), survives run pruning |
 | `TIVM_RUNS_DIR` | `/app/runs` | artifact directory inside the container |
 | `TIVM_PROJECTS_DIR` | `/root/projects` | where repos are cloned for the prepare phase |
 | `SCREEN_W` / `SCREEN_H` | `1280` / `800` | desktop resolution |

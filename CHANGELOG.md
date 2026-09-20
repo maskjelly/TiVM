@@ -3,6 +3,28 @@
 Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
 file.
 
+## 0.6.0 — replay: repeat a flow without calling the model
+
+- **Trace recording.** When a flow passes while an app is under test, the runner stores the action
+  trace (action, target role+text, typed text, key, point) plus up to six assertions — texts that
+  appeared only after the flow ran. Traces live in `TIVM_TRACES_DIR` (host `./traces`) keyed by
+  task + app URL, so they survive run pruning.
+- **Replay first.** On a repeat of the same task against the same app URL, TiVM replays the trace
+  with no planner calls: it re-finds each target by role+text (then normalised text, then recorded
+  point within 24 px), performs the action, settles, and finally checks that the recorded
+  assertions are on screen. Success returns `mode: replay`; the report shows a `replay` badge.
+- **Divergence falls back.** A missing target or a failed assertion logs the reason, emits a
+  `replay` timeline event, and explores the task with the planner as before (then records a fresh
+  trace on success). `TIVM_REPLAY=0` disables the whole path.
+- **Determinism work that replay forced:** Firefox autoconfig prefs (no first-run/onboarding),
+  graceful `firefox --quit` between runs (a crash-restore infobar shifts the page), a single
+  browser window per run, window activation before replay, and assertions scoped to the browser
+  window with a chrome denylist. Verified on rove: suite re-run replayed both todo flows with
+  **0 planner tokens** (34 s + 64 s vs 216 s + 41 s exploring).
+- **Tests** — 11 new stdlib cases (46 total): normalisation/assertions, target matching, trace
+  round trip, successful replay, divergence on missing target and on wrong final state.
+- First slice of P3 in `docs/HOSTED.md`; budget/proxy work remains.
+
 ## 0.5.1 — rove desktop fix: vendored seccomp profile, kernel 5.15
 
 - **Black desktop root cause found.** The host's libseccomp 2.5.1 does not know `close_range`
