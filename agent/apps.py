@@ -295,6 +295,37 @@ def wait_ready(spec, log, log_path):
     raise PrepareError(f"app not ready after {int(spec['ready_timeout'])}s: {spec['url']}\n{last}")
 
 
+def close_browsers(timeout=8):
+    if _running("firefox"):
+        try:
+            subprocess.run(
+                ["firefox", "--quit"], check=False, env=_env(), timeout=timeout / 2,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            pass
+        deadline = time.monotonic() + timeout / 2
+        while time.monotonic() < deadline and _running("firefox"):
+            time.sleep(0.5)
+    if _running("firefox"):
+        subprocess.run(
+            ["pkill", "-f", "firefox"], check=False, env=_env(),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    if _running("epiphany"):
+        subprocess.run(
+            ["pkill", "-f", "epiphany"], check=False, env=_env(),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+
+def _running(pattern):
+    result = subprocess.run(
+        ["pgrep", "-f", pattern], capture_output=True, env=_env(),
+    )
+    return result.returncode == 0
+
+
 def stop_all():
     while _processes:
         proc, fh = _processes.pop()

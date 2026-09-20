@@ -144,7 +144,8 @@ def _task_card(index, task, timeline, run_files):
         f'<section class="card {"pass" if passed else "fail"}"><header>'
         f'<span class="badge {"pass" if passed else "fail"}">{"PASS" if passed else "FAIL"}</span>'
         f"<h2>{_esc(task.get('task'))}</h2>"
-        f'<span class="meta">{_esc(task.get("steps"))} steps · {_esc(task.get("duration_s"))}s</span>'
+        f'<span class="meta">{_esc(task.get("steps"))} steps · {_esc(task.get("duration_s"))}s'
+        f'{" · replay" if task.get("mode") == "replay" else ""}</span>'
         "</header>"
         f'<p class="reason">{_esc(task.get("reason"))}</p>'
         f"{_video_block(task.get('video'), index, run_files)}"

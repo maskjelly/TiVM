@@ -56,8 +56,8 @@ INVOKE_ROLES = {
     "tree item",
 }
 
-MAX_NODES = 900
-MAX_MS = 500
+MAX_NODES = 2000
+MAX_MS = 1500
 
 
 def _extents(node):

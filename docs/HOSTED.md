@@ -117,6 +117,24 @@ Per run, generated from `run.json` + `timeline.json` + video, no live UI:
 Targets to calibrate against: first screenshot < 90 s after a push (warm cache), replay flow
 < 60 s at ~0 planner tokens, full report < 10 min, LLM cost per PR < $0.10 in the steady state.
 
+### P3 replay notes (from verification on rove)
+
+- A trace stores each action (text target **and** the effective click point), the window origin,
+  and up to six assertions: texts that appeared only after the flow, scoped to the browser window
+  with a chrome denylist. Assertions come from OCR (pixel-accurate) plus the typed text itself.
+- Replay activates the browser window, resolves targets by role+text when the a11y tree has them,
+  otherwise clicks the recorded point (shifted if the window moved), then verifies the assertions
+  with OCR.
+- The host's a11y tree is thin (often one or two elements for a Firefox window), which is why
+  traces carry points and assertions lean on OCR; the planner works from the screenshot. Hardening
+  perception is the highest-value follow-up (P4).
+- Browser lifecycle matters: runs start with exactly one Firefox window (graceful `firefox --quit`
+  between runs), because a "restore previous tabs" infobar shifts the page and breaks points. The
+  image ships Firefox autoconfig prefs to suppress first-run/onboarding prompts.
+- A flow that starts by clicking the desktop dock (recorded when the planner needed to focus the
+  browser) still replays, but the dock step is dropped from the trace in favour of activating the
+  window directly.
+
 ## Trust model
 
 The dev box runs untrusted PR code (fork PRs especially). Rules:
@@ -140,7 +158,7 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 | **P1 done** | `.tivm.yml` contract, prepare phase (clone at ref/PR, setup, launch, ready check, Firefox), inference fallback, `/api/prepare`, contract flows as the suite | **verified 2026-09-19**: rove cloned the P1 branch, prepared `examples/todo-app` (ready in 2.1 s) and both contract flows passed — add-todo (6 steps) and complete-todo (5 steps), 85 s and ~21k tokens total, per-flow video and report reviewed |
 | **P2 service done, App pending** | orchestrator: HMAC webhook (`issue_comment` mention, `pull_request` label), SQLite queue with supersede-on-push, worker on one dev box, sticky comment + check payloads, tokenized report/video URLs, internal dashboard | **verified 2026-09-19**: a signed `pull_request labeled` webhook for a real PR ref queued a job, the worker prepared and ran the repo's contract flows to `pass`, and the tokenized report + video served 200 through the tunnel (wrong token 404). Posting to GitHub is unit-tested and skipped without a token — App registration/PAT is the remaining step |
 | P2 | GitHub App, queue, concurrency 2, cancel-on-push, sticky comment + check, report URL | `@tivm test` on a real PR produces a report link in under 10 minutes; the panel stays private |
-| P3 | replay executor, divergence fallback, LLM proxy, dep caches, budgets | replay flow < 60 s at ~0 planner tokens; a seeded UI regression is still caught |
+| **P3 replay done** | trace recording + replay executor with divergence fallback (`agent/replay.py`), `mode: replay` in results and the report | **verified 2026-09-20**: suite re-run replayed both flows with **0 planner tokens** (`mode: replay`, 34 s + 64 s, vs 216 s + 41 s exploring); LLM proxy, dep caches and per-job budgets still open |
 | P4 | nav/link enumeration → generated smoke flows; diff→flows mapping | all top-level surfaces of a reference app are covered within budget, skips reported |
 | P5 | egress allowlist, caps, quotas, kill switch, fork isolation | a hostile PR cannot reach keys, other runs or the host; the box survives starvation |
 
