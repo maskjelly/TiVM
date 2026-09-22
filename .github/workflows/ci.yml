@@ -46,7 +46,7 @@ jobs:
       - name: Wait for desktop API
         run: |
           for i in $(seq 1 30); do
-            if docker exec tivm-ci curl -fsS http://127.0.0.1:6081/healthz >/dev/null; then
+            if docker exec tivm-ci curl -fsS http://127.0.0.1:6081/api/system >/dev/null; then
               exit 0
             fi
             sleep 1
