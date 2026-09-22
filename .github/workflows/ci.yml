@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -37,10 +38,21 @@ jobs:
             -e OPENAI_API_KEY=ci-placeholder \
             -e TYPESAFE_API_KEY=ci-placeholder \
             -v "$PWD/agent:/app/agent:ro" \
+            -v "$PWD/orchestrator:/app/orchestrator:ro" \
             -v "$PWD/tests:/app/tests:ro" \
             -v "$PWD/runs:/app/runs" \
             -v "$PWD/traces:/app/traces" \
             tivm-desktop:ci
+      - name: Wait for desktop API
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec tivm-ci curl -fsS http://127.0.0.1:6081/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs tivm-ci
+          exit 1
       - name: Run existing unit suite
         run: docker exec tivm-ci python3 -m unittest discover -s /app/tests -v
       - name: Stop desktop

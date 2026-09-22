@@ -8,7 +8,8 @@ file.
 - Local Docker ports now bind to loopback by default; per-task automation has a finite 40-step
   default budget.
 - Added a container-based CI workflow for the existing Python unit suite, a security policy, and a
-  product readiness plan. The workflow has not yet completed its first hosted run.
+  product readiness plan. The first CI run found and fixed a missing orchestrator mount; the
+  corrected run is pending.
 - Rewrote the project overview to explain the product, surface the demonstrated replay result, and
   state the pre-1.0 and trusted-code limits clearly.
 
