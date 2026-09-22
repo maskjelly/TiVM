@@ -54,8 +54,8 @@
 ## Guards
 
 `done` / `blocked` from the planner · 4 identical actions · 4 no-change actions · 20 consecutive
-waits · Stop button. Steps are unlimited by default (`TIVM_MAX_STEPS=0`); pass `max_steps` per run
-to cap a hosted job.
+waits · Stop button. Each task has a 40-step default budget (`TIVM_MAX_STEPS=40`); hosted jobs
+use their own lower per-job budget.
 
 ## Failure contract
 
@@ -110,7 +110,7 @@ but still export everything captured so far.
 | `TIVM_VIDEO` | `1` | record the desktop with ffmpeg (needs ffmpeg in the image) |
 | `TIVM_VIDEO_FPS` / `TIVM_VIDEO_CRF` | `10` / `30` | capture rate and quality |
 | `TIVM_VIDEO_FAILURE_WINDOW` | `25` | seconds kept in `task-N-failure.mp4` |
-| `TIVM_BIND` | `0.0.0.0` | host bind address for 6080/6081; hosted deploys use `127.0.0.1` |
+| `TIVM_BIND` | `127.0.0.1` | host bind address for 6080/6081; set `0.0.0.0` only on a trusted network |
 | `TIVM_REPLAY` | `1` | replay a recorded trace for a repeated task instead of calling the planner |
 | `TIVM_TRACES_DIR` | `/app/traces` | trace storage (host `./traces`), survives run pruning |
 | `TIVM_RUNS_DIR` | `/app/runs` | artifact directory inside the container |

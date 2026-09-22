@@ -27,7 +27,7 @@ timeline, verdicts, token usage and artifacts.*
 - [Running tests](#running-tests) · [What happens during a run](#what-happens-during-a-run)
 - [Verdicts and artifacts](#verdicts-and-artifacts) · [Dev box lifecycle](#dev-box-lifecycle)
 - [Configuration](#configuration) · [Troubleshooting](#troubleshooting)
-- [Architecture](docs/ARCHITECTURE.md) · [Hosted service plan](docs/HOSTED.md) · [Contributing](CONTRIBUTING.md) · [Prior art](#prior-art)
+- [Architecture](docs/ARCHITECTURE.md) · [Readiness](docs/READINESS.md) · [Hosted service plan](docs/HOSTED.md) · [Contributing](CONTRIBUTING.md) · [Prior art](#prior-art)
 
 ## Install
 
@@ -80,10 +80,10 @@ make logs      # follow container logs
 | Verdict JSON of the current/last run | http://localhost:6081/api/result |
 | Raw log | panel header → **Log** |
 
-Ports are published on `0.0.0.0`, so another device on the same network can use
-`http://<your-ip>:6081` and `http://<your-ip>:6080/vnc.html?autoconnect=1&resize=scale`.
-**There is no auth by default** — set `TIVM_TOKEN` (see [Configuration](#configuration)) before
-exposing the panel beyond your machine.
+Ports bind to `127.0.0.1` by default, so the panel and live desktop are local to your machine.
+To access them from another device on a trusted network, set `TIVM_BIND=0.0.0.0` and configure
+`TIVM_TOKEN` before starting TiVM. The token protects the API, but noVNC itself is not an
+authenticated remote desktop; do not expose it to the public internet.
 
 ## Running tests
 
@@ -161,7 +161,8 @@ perceive (a11y + optional OCR) → one planner call → act → settle → repea
 - **Settle** — poll until the frame stops changing (0.35 s min, up to 10 s after commands).
 
 Guards: `done`/`blocked` from the planner, 4 identical actions, 4 no-change actions, 20
-consecutive waits, Stop. Steps are **unlimited by default** (`TIVM_MAX_STEPS=0`).
+consecutive waits, Stop. Each task has a 40-step budget by default (`TIVM_MAX_STEPS=40`); raise
+it for longer flows.
 
 ## Verdicts and artifacts
 
@@ -231,7 +232,7 @@ All settings live in `agent/config.py` with env-var overrides; the ones you are 
 | `TIVM_OPENAI_REASONING_EFFORT` | `none` | keep it non-reasoning for speed/cost |
 | `TIVM_OPENAI_VISION_MODEL` | `gpt-5.6-sol` | model for `TIVM_PERCEPTION=vision` |
 | `TIVM_PERCEPTION` | `hybrid` | `hybrid` (a11y + tesseract for Jev) · `a11y` · `vision` |
-| `TIVM_MAX_STEPS` | `0` | 0 = unlimited; cap per run via the API if you want a budget |
+| `TIVM_MAX_STEPS` | `40` | default action budget per task |
 | `TIVM_TOKEN` | empty | bearer token required on `/api/run` and `/api/stop` |
 | `TIVM_KEEP_RUNS` | `20` | artifact folders kept on disk |
 | `SCREEN_W` / `SCREEN_H` | `1280` / `800` | dev box resolution |

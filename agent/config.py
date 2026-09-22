@@ -21,7 +21,7 @@ PERCEPTION = os.environ.get("TIVM_PERCEPTION", "hybrid")
 SCREEN_W = int(os.environ.get("SCREEN_W", "1280"))
 SCREEN_H = int(os.environ.get("SCREEN_H", "800"))
 
-MAX_STEPS = int(os.environ.get("TIVM_MAX_STEPS", "0"))  # 0 = no step limit
+MAX_STEPS = int(os.environ.get("TIVM_MAX_STEPS", "40"))
 MAX_ELEMENTS = 150
 OCR_SCALE = int(os.environ.get("TIVM_OCR_SCALE", "2"))
 GRID_COLS = 4

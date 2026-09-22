@@ -16,6 +16,14 @@ flows with the computer-use agent, and posts back:
 
 The TiVM control panel and live desktop are **internal tooling**. PR authors never see them.
 
+> **Not safe for public PR workloads yet.** The current compose setup passes `.env` into the desktop
+> container. PR-controlled setup scripts and planner-directed shell commands run in that same
+> container, so they can read provider credentials. A 40-step limit and loopback binding reduce
+> accidental exposure; they do not isolate hostile code. Keep hosted runs limited to trusted repos
+> until credentials move behind a per-run proxy and each job gets a disposable, network-restricted
+> execution boundary. The architecture below is a target design, not a claim that these controls
+> are already implemented.
+
 ## Topology
 
 ```
@@ -172,7 +180,7 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 | still images only (`agent/vision.py`) | per-task `ffmpeg` x11grab video + failure clips |
 | panel is the only UI (`agent/static/index.html`) | static `report.html` for PR authors; panel stays tunnel-only |
 | prep guessed from task text (`agent/loop.py:26`) | explicit `prepare` phase driven by `.tivm.yml` |
-| ports published on `0.0.0.0` (`docker-compose.yml`) | hosted profile binds `127.0.0.1` and is reached only through the tunnel |
+| ports published on `0.0.0.0` (`docker-compose.yml`) | local and hosted profiles bind `127.0.0.1` by default and are reached only through the tunnel |
 | colima-only `Makefile` | rove provision/deploy/tunnel targets + `deploy/` scripts |
 
 ## Operations
