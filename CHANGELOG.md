@@ -3,6 +3,15 @@
 Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
 file.
 
+## Unreleased — launch readiness
+
+- Local Docker ports now bind to loopback by default; per-task automation has a finite 40-step
+  default budget.
+- Added a container-based CI workflow for the existing Python unit suite, a security policy, and a
+  product readiness plan. The workflow has not yet completed its first hosted run.
+- Rewrote the project overview to explain the product, surface the demonstrated replay result, and
+  state the pre-1.0 and trusted-code limits clearly.
+
 ## 0.6.0 — replay: repeat a flow without calling the model
 
 - **Trace recording.** When a flow passes while an app is under test, the runner stores the action

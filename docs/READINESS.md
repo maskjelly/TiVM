@@ -10,7 +10,8 @@ trusted-repository pilot. It is not ready to execute untrusted public pull reque
 
 - Run the example app and at least three unrelated apps repeatedly; record pass rate, false pass
   rate, replay rate, runtime, and model cost.
-- Publish a CI workflow that builds the image and runs the unit/integration suite on every change.
+- CI workflow is added to build the image and run the existing unit suite; its first hosted run is
+  still pending. A separate repeatable UI reliability benchmark does not exist yet.
 - Make a clean-machine install and recovery guide, then have someone other than the maintainer
   follow it.
 - Keep binding loopback by default and use a finite per-task action budget. These local defaults

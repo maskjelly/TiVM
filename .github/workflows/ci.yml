@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit suite (container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./docker
+          load: true
+          tags: tivm-desktop:ci
+          cache-from: type=gha,scope=desktop
+          cache-to: type=gha,mode=max,scope=desktop
+      - name: Start disposable desktop
+        run: |
+          mkdir -p runs traces
+          docker run -d --name tivm-ci \
+            -e TIVM_MAX_STEPS=40 \
+            -e TIVM_TOKEN=ci-test-token \
+            -e TIVM_VIDEO=0 \
+            -e OPENAI_API_KEY=ci-placeholder \
+            -e TYPESAFE_API_KEY=ci-placeholder \
+            -v "$PWD/agent:/app/agent:ro" \
+            -v "$PWD/tests:/app/tests:ro" \
+            -v "$PWD/runs:/app/runs" \
+            -v "$PWD/traces:/app/traces" \
+            tivm-desktop:ci
+      - name: Run existing unit suite
+        run: docker exec tivm-ci python3 -m unittest discover -s /app/tests -v
+      - name: Stop desktop
+        if: always()
+        run: docker rm -f tivm-ci || true

@@ -40,12 +40,13 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
   never just "failed".
 - A failing task must never stop the suite; remaining tasks still run.
 
-## Testing
+## Validation
 
-There is no test suite in CI; testing is the product. Use the panel:
+The repository has a Python unit suite, run in CI inside the desktop image. You can run it locally
+with `make up && make test`. For changes to desktop behavior, also validate the full product flow:
 
 1. `make up`, open the panel, run `check toolchain` (a preset) — verifies the sandbox and the loop.
 2. Run a repo task: `Clone https://github.com/owner/repo and show its files`.
 3. Inspect `runs/<id>/timeline.json` and `task-N-final.jpg` when something goes wrong.
 
-Offline checks: `python3 -m py_compile agent/*.py` (uses only stdlib).
+Offline syntax check: `python3 -m py_compile agent/*.py` (uses only stdlib).

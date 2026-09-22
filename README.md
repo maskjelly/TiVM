@@ -1,15 +1,19 @@
 # TiVM
 
+[![CI](https://github.com/maskjelly/TiVM/actions/workflows/ci.yml/badge.svg)](https://github.com/maskjelly/TiVM/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#install)
-[![Decisions](https://img.shields.io/badge/decisions-TypeSafe%20jev%20%7C%20OpenAI-8b5cf6.svg)](https://docs.typesafe.ai)
+[![Version](https://img.shields.io/badge/status-pre--1.0-orange.svg)](CHANGELOG.md)
 
-**Computer-use test agent for a disposable Linux desktop ("dev box").** Give it a task in plain
-English — it opens apps, types commands, installs repositories, runs dev servers and clicks
-through the UI. The screen is read through the **AT-SPI accessibility tree** (not pixels),
-decisions come from a **GPT planner** that writes shell commands or from **TypeSafe Jev** typed
-questions, and actions run through accessibility `invoke` or `xdotool`. Every run starts from a
-clean box; verdicts and screenshots are exported before teardown.
+**TiVM runs end-to-end tests by using a disposable Linux desktop like a person would.** Give it a
+task in plain English or define app flows in `.tivm.yml`. It reads the UI through Linux's
+accessibility tree, acts through accessible controls or keyboard and mouse, and saves a verdict,
+step history, screenshot, and video for review. Passing flows can be replayed without another
+planner call.
+
+TiVM is an open-source testing tool for teams that need to exercise complete user journeys,
+including interfaces that are awkward to cover with DOM-only tests. The project is pre-1.0: treat
+results as reviewable automation, not a substitute for deterministic assertions or human QA.
 
 ![Control panel](docs/panel.png)
 *Control panel: live desktop with the chosen target boxed, task/step chrome, the orchestrator's
@@ -19,6 +23,15 @@ plan and memory, per-step timeline, and per-task verdicts with failure detail.*
 *Run history: every completed suite is exported to `runs/<id>/` and can be reopened here with its
 timeline, verdicts, token usage and artifacts.*
 
+**Prototype evidence:** the included todo app completed both contract flows in a hosted run in
+September 2026; the recorded replay completed those flows with zero planner tokens. These are
+single-app demonstrations, not broad reliability benchmarks. Details and limits are in
+[the hosted-runner notes](docs/HOSTED.md).
+
+> **Security:** use only trusted repositories and tasks that you are comfortable running in a
+> container. TiVM's container is not a hardened boundary. Public pull-request execution is not
+> enabled for untrusted code; see [SECURITY.md](SECURITY.md) and the [readiness plan](docs/READINESS.md).
+
 ---
 
 ## Contents
@@ -27,7 +40,8 @@ timeline, verdicts, token usage and artifacts.*
 - [Running tests](#running-tests) · [What happens during a run](#what-happens-during-a-run)
 - [Verdicts and artifacts](#verdicts-and-artifacts) · [Dev box lifecycle](#dev-box-lifecycle)
 - [Configuration](#configuration) · [Troubleshooting](#troubleshooting)
-- [Architecture](docs/ARCHITECTURE.md) · [Readiness](docs/READINESS.md) · [Hosted service plan](docs/HOSTED.md) · [Contributing](CONTRIBUTING.md) · [Prior art](#prior-art)
+- [Security](SECURITY.md)
+- [Demo walkthrough](docs/DEMO.md) · [Architecture](docs/ARCHITECTURE.md) · [Readiness](docs/READINESS.md) · [Hosted service plan](docs/HOSTED.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Prior art](#prior-art)
 
 ## Install
 
@@ -202,6 +216,9 @@ runs/<timestamp>/screen.mp4          full-suite recording (source of the task cl
 runs/<timestamp>/report.html         shareable report: verdicts, videos, failure story
 runs/<timestamp>/timeline.json       every step: action, reason, check, timings, tokens
 ```
+
+Artifacts can contain app data, screenshots, and typed task content. Review them before sharing a
+report or committing a run.
 
 The report is also reachable live at `http://localhost:6081/runs/<id>/report.html`
 (or `/api/runs/<id>/report`, which regenerates it). `TIVM_VIDEO=0` turns recording off.
