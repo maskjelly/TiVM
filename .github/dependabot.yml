@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    allow:
+      - update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
     groups:
       github-actions:
         patterns:
@@ -12,11 +16,23 @@ updates:
     directory: /docker
     schedule:
       interval: weekly
+    allow:
+      - update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
   - package-ecosystem: docker
     directory: /orchestrator
     schedule:
       interval: weekly
+    allow:
+      - update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+    allow:
+      - update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
