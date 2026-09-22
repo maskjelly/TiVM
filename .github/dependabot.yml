@@ -19,7 +19,6 @@ updates:
     allow:
       - update-types:
           - version-update:semver-patch
-          - version-update:semver-minor
   - package-ecosystem: docker
     directory: /orchestrator
     schedule:
@@ -27,7 +26,6 @@ updates:
     allow:
       - update-types:
           - version-update:semver-patch
-          - version-update:semver-minor
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -35,4 +33,3 @@ updates:
     allow:
       - update-types:
           - version-update:semver-patch
-          - version-update:semver-minor
