@@ -1,7 +1,8 @@
 FROM python:3.12-slim
 
 WORKDIR /app
-RUN pip install --no-cache-dir fastapi uvicorn requests
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY . /app/orchestrator
 ENV PYTHONUNBUFFERED=1

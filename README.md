@@ -238,6 +238,10 @@ never inherit state.
 | `make nuke` | kill boxes + delete the VM → reclaims RAM and ~GBs of disk |
 | `make clean` | prune dangling images and build cache |
 
+## Hosted deployment
+
+The [hosted guide](docs/HOSTED.md#required-hosted-configuration) covers API authentication, trusted repository setup, deduplicated webhooks, cancellation, recovery and rollback. Hosted execution accepts trusted repositories only and rejects fork PRs.
+
 ## Configuration
 
 All settings live in `agent/config.py` with env-var overrides; the ones you are likely to touch:

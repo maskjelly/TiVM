@@ -1,6 +1,6 @@
 # TiVM Hosted — PR-triggered computer-use testing
 
-Status: P0 done on rove. This document is the reference for turning TiVM from a local control
+Status: trusted-repository deployment only. This document is the reference for turning TiVM from a local control
 panel into a hosted service where a PR author only ever sees a check, a comment and a report.
 
 ## Goal
@@ -28,7 +28,7 @@ The TiVM control panel and live desktop are **internal tooling**. PR authors nev
 
 ```
 GitHub ──webhook (HMAC)──► rove: tivm-orchestrator
-   ▲                             │  job queue (SQLite), concurrency 2
+   ▲                             │  job queue (SQLite), concurrency 1
    │                             ▼
    │                       dev box N (docker: Xvfb + XFCE + Firefox + agent)
    │                             │  artifacts: run.json, timeline.json, task-N.mp4, shots
@@ -40,7 +40,7 @@ Mac = client: ssh tunnel for internal dashboard, live debugging, replays. No hos
 ```
 
 Rove (measured): Ubuntu 20.04, 4 vCPU, 7.6 GB RAM, 98 GB disk. No swap and no Docker initially.
-Two concurrent dev boxes is the safe ceiling; a third only if the app under test is light.
+The implemented worker owns one dev box and rejects concurrency greater than one. Provision and route separate workers/boxes before increasing capacity.
 
 ## Decisions
 
@@ -165,7 +165,7 @@ The dev box runs untrusted PR code (fork PRs especially). Rules:
 | **P0 done** | rove provisioned; hosted compose profile; remote deploy and tunnel targets; per-task video; static report | a suite on rove yields `task-N.mp4` + `report.html`, watched from the Mac over the tunnel — **verified 2026-09-19**: 1/2 flows passed, both clips reviewed, report served over `make tunnel` |
 | **P1 done** | `.tivm.yml` contract, prepare phase (clone at ref/PR, setup, launch, ready check, Firefox), inference fallback, `/api/prepare`, contract flows as the suite | **verified 2026-09-19**: rove cloned the P1 branch, prepared `examples/todo-app` (ready in 2.1 s) and both contract flows passed — add-todo (6 steps) and complete-todo (5 steps), 85 s and ~21k tokens total, per-flow video and report reviewed |
 | **P2 service done, App pending** | orchestrator: HMAC webhook (`issue_comment` mention, `pull_request` label), SQLite queue with supersede-on-push, worker on one dev box, sticky comment + check payloads, tokenized report/video URLs, internal dashboard | **verified 2026-09-19**: a signed `pull_request labeled` webhook for a real PR ref queued a job, the worker prepared and ran the repo's contract flows to `pass`, and the tokenized report + video served 200 through the tunnel (wrong token 404). Posting to GitHub is unit-tested and skipped without a token — App registration/PAT is the remaining step |
-| P2 | GitHub App, queue, concurrency 2, cancel-on-push, sticky comment + check, report URL | `@tivm test` on a real PR produces a report link in under 10 minutes; the panel stays private |
+| P2 | GitHub App, queue, concurrency 1, cancel-on-push, sticky comment + check, report URL | `@tivm test` on a real PR produces a report link in under 10 minutes; the panel stays private |
 | **P3 replay done** | trace recording + replay executor with divergence fallback (`agent/replay.py`), `mode: replay` in results and the report | **verified 2026-09-20**: suite re-run replayed both flows with **0 planner tokens** (`mode: replay`, 34 s + 64 s, vs 216 s + 41 s exploring); LLM proxy, dep caches and per-job budgets still open |
 | P4 | nav/link enumeration → generated smoke flows; diff→flows mapping | all top-level surfaces of a reference app are covered within budget, skips reported |
 | P5 | egress allowlist, caps, quotas, kill switch, fork isolation | a hostile PR cannot reach keys, other runs or the host; the box survives starvation |
@@ -259,3 +259,22 @@ Notes:
   was actually in flight).
 - Every webhook event is stored with the job, so a future replay/debug is possible without GitHub.
 - GitHub permission gating (writer/triage only) is enforced when a token is present.
+
+
+## Required hosted configuration
+
+Set `TIVM_API_TOKEN` to a long random secret and `TIVM_ALLOWED_REPOS` to comma-separated trusted `owner/repo` names. Startup refuses either missing setting. Keep `TIVM_CONCURRENCY=1`. Set `TIVM_TOKEN` to protect the desktop API too; the orchestrator forwards it to box control requests.
+
+Job APIs and the dashboard require `X-TiVM-Token`. Health stays public. Report links carry an unguessable per-job capability; treat those links as sensitive. To open the dashboard in a browser, use an authenticated internal reverse proxy that injects the header. Keep control ports loopback-only.
+
+```sh
+curl -fsS -H "X-TiVM-Token: $TIVM_API_TOKEN" http://127.0.0.1:6090/api/jobs
+curl -fsS -H "X-TiVM-Token: $TIVM_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"repo":"owner/repo","pr":42}' http://127.0.0.1:6090/api/jobs
+```
+
+Webhooks require HMAC, a GitHub delivery ID, a configured GitHub token, a writer/maintainer/admin trigger actor, and an allowlisted repository. Fork PRs and unverifiable heads are rejected. The accepted head SHA is checked after cloning and before setup commands, so a moving PR cannot receive a result for the wrong commit. This restricts the trusted-only boundary; it does not make same-repository malicious commits safe.
+
+Delivery insertion and supersession use one SQLite transaction. Duplicates return the original job without restarting it; receipts are kept for seven days. Job claims are atomic across connections. Intake is bounded to 64 queued/running jobs; overload returns HTTP 429. Terminal job history is pruned after completed runs. Cancellation and supersession remain terminal when a late worker returns. At startup, running jobs become failed with an explicit unknown outcome and the old box is stopped; queued jobs remain queued. Review artifacts and external effects before retrying uncertain work.
+
+Before an upgrade, stop intake, let jobs finish, stop the orchestrator, and back up `data/`, `runs/`, and `traces/`. Retain the prior image and config. Start the new version, check health and authenticated job listing, and submit one trusted staging job. Roll back the image and database backup together if validation fails. Hostile/public PR support still requires per-job disposable isolation and a credential proxy as described above.

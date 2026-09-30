@@ -51,7 +51,7 @@ def event_job(event, delivery=""):
             "sha": (pr.get("head") or {}).get("sha", ""),
             "ref": f"pull/{event.get('number')}/head",
             "trigger": f"pr:{action}",
-            "actor": ((pr.get("user") or {}).get("login", "")),
+            "actor": ((event.get("sender") or pr.get("user") or {}).get("login", "")),
         }, ""
 
     return None, f"ignored event {kind or 'unknown'}"
@@ -70,15 +70,27 @@ class Worker:
         self.log = log
         self.stop_flag = False
         self.threads = []
+        self.box_lock = threading.Lock()
+        self.active_job = None
 
     def start(self):
-        for i in range(max(1, config.CONCURRENCY)):
+        if config.CONCURRENCY != 1:
+            raise ValueError("This worker owns one dev box; TIVM_CONCURRENCY must be 1")
+        self.stop_flag = False
+        if self.threads:
+            return
+        for i in range(1):
             thread = threading.Thread(target=self._loop, name=f"tivm-worker-{i}", daemon=True)
             thread.start()
             self.threads.append(thread)
 
     def stop(self):
         self.stop_flag = True
+
+    def stop_job(self, job_id):
+        with self.box_lock:
+            if self.active_job == job_id:
+                self.box.stop()
 
     def _loop(self):
         while not self.stop_flag:
@@ -94,29 +106,39 @@ class Worker:
 
     def _run(self, job):
         current = self.store.get(job["id"])
-        if current and current["status"] == "superseded":
+        if current and current["status"] in ("superseded", "cancelled"):
             return
         app = {"repo": job["repo"]}
         if job.get("pr"):
             app["pr"] = job["pr"]
+            if job.get("sha"):
+                app["expected_sha"] = job["sha"]
         else:
             app["ref"] = job.get("ref") or None
         self.log(f"job {job['id']}: run {job['repo']}#{job.get('pr') or job.get('ref')}")
         try:
-            run_id = self.box.start(app)
+            with self.box_lock:
+                if self.store.get(job["id"])["status"] in ("superseded", "cancelled"):
+                    return
+                self.active_job = job["id"]
+                run_id = self.box.start(app)
         except BoxError as e:
+            if self.store.get(job["id"])["status"] in ("superseded", "cancelled"):
+                return
             self.store.finish(job["id"], "failed", error=f"box: {e}")
             self._publish_check(job, "failure", "Could not start the run", str(e))
             return
         finished = self.box.wait(run_id)
         if not finished:
+            if self.store.get(job["id"])["status"] in ("superseded", "cancelled"):
+                return
             self.box.stop()
             self.store.finish(job["id"], "failed", run_id=run_id, error="run timed out")
             self._publish_check(job, "failure", "Run timed out", f"After {config.JOB_TIMEOUT}s")
             return
         result = self.box.result()
         passed = bool(result.get("passed"))
-        if self.store.get(job["id"])["status"] == "superseded":
+        if self.store.get(job["id"])["status"] in ("superseded", "cancelled"):
             self.log(f"job {job['id']}: superseded, not publishing")
             return
         url = report_url(job)
@@ -130,6 +152,7 @@ class Worker:
             job["id"], "done" if passed else "failed",
             run_id=run_id, verdict="pass" if passed else "fail", comment_id=comment_id,
         )
+        self.store.prune(config.KEEP_JOBS)
         self.log(f"job {job['id']}: {'pass' if passed else 'fail'} (run {run_id})")
 
     def _summary(self, result):

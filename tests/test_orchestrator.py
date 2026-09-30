@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from orchestrator import core
 from orchestrator.github import GitHub, build_comment, verify_signature
-from orchestrator.store import Store
+from orchestrator.store import Store, QueueFull
 
 
 def event(kind, action, **extra):
@@ -212,7 +212,7 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(len(self.github.comments), 1)
         self.assertEqual(self.github.comments[0][1], 7)
         self.assertEqual(self.github.checks[0][2], "failure")
-        self.assertEqual(self.box.started[0][0], {"repo": "owner/name", "pr": 7})
+        self.assertEqual(self.box.started[0][0], {"repo": "owner/name", "pr": 7, "expected_sha": "abc"})
 
     def test_superseded_job_does_not_publish(self):
         job_id = self.store.enqueue("owner/name", pr=7, trigger="comment")
@@ -228,6 +228,85 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(self.store.get(job_id)["status"], "failed")
         self.assertEqual(self.box.stopped, 1)
         self.assertEqual(self.github.checks[0][2], "failure")
+
+
+class ReliabilityTests(unittest.TestCase):
+    def setUp(self):
+        self.path = os.path.join(tempfile.mkdtemp(prefix="tivm-reliable-"), "jobs.sqlite")
+        self.store = Store(self.path)
+
+    def test_queue_capacity_rejects_overload_without_losing_existing_work(self):
+        store = Store(self.path + ".bounded", max_pending=1)
+        first = store.enqueue("owner/name")
+        with self.assertRaises(QueueFull):
+            store.enqueue("other/repo")
+        with self.assertRaises(QueueFull):
+            store.enqueue_delivery("d1", {"repo": "other/repo", "pr": 1, "trigger": "comment"}, {})
+        self.assertEqual(store.get(first)["status"], "queued")
+        self.assertEqual(len(store.list()), 1)
+
+    def test_delivery_duplicate_does_not_supersede_its_job(self):
+        job = {"repo": "owner/name", "pr": 7, "trigger": "comment"}
+        first, old, duplicate = self.store.enqueue_delivery("delivery-1", job, {})
+        self.assertFalse(duplicate)
+        self.assertEqual(old, [])
+        self.store.claim()
+        second, old, duplicate = self.store.enqueue_delivery("delivery-1", job, {})
+        self.assertEqual(first, second)
+        self.assertTrue(duplicate)
+        self.assertEqual(old, [])
+        self.assertEqual(self.store.get(first)["status"], "running")
+        third, old, duplicate = self.store.enqueue_delivery("delivery-2", job, {})
+        self.assertNotEqual(first, third)
+        self.assertEqual(old, [{"id": first, "status": "running"}])
+        self.assertEqual(self.store.get(first)["status"], "superseded")
+
+    def test_two_connections_cannot_claim_one_job(self):
+        import concurrent.futures
+        second = Store(self.path)
+        self.store.enqueue("owner/name")
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            claimed = list(pool.map(lambda store: store.claim(), [self.store, second]))
+        self.assertEqual(sum(job is not None for job in claimed), 1)
+
+    def test_terminal_states_cannot_be_overwritten(self):
+        for status in ("cancelled", "superseded", "done", "failed"):
+            job_id = self.store.enqueue("owner/name")
+            self.store.finish(job_id, status)
+            self.store.finish(job_id, "done", error="late worker")
+            self.assertEqual(self.store.get(job_id)["status"], status)
+
+    def test_restart_marks_running_jobs_uncertain_without_replay(self):
+        running = self.store.enqueue("owner/name")
+        queued = self.store.enqueue("owner/name")
+        self.store.claim()
+        self.assertEqual(self.store.recover_running(), 1)
+        self.assertEqual(self.store.get(running)["status"], "failed")
+        self.assertIn("unknown", self.store.get(running)["error"])
+        self.assertEqual(self.store.get(queued)["status"], "queued")
+
+    def test_cancel_during_wait_never_publishes(self):
+        store = self.store
+        job_id = store.enqueue("owner/name", pr=7, sha="abc")
+        class CancelBox(FakeBox):
+            def wait(self, run_id):
+                store.finish(job_id, "cancelled")
+                return True
+        github = FakeGitHub()
+        worker = core.Worker(store, CancelBox({"passed": True}), github, log=lambda *_: None)
+        worker._run(store.get(job_id))
+        self.assertEqual(store.get(job_id)["status"], "cancelled")
+        self.assertEqual(github.comments, [])
+        self.assertEqual(github.checks, [])
+
+    def test_old_cancel_cannot_stop_a_new_job(self):
+        box = FakeBox({})
+        worker = core.Worker(self.store, box, FakeGitHub(), log=lambda *_: None)
+        worker.active_job = "new"
+        worker.stop_job("old")
+        self.assertEqual(box.stopped, 0)
+        worker.stop_job("new")
+        self.assertEqual(box.stopped, 1)
 
 
 if __name__ == "__main__":

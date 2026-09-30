@@ -27,3 +27,6 @@ CONCURRENCY = _int("TIVM_CONCURRENCY", 1)
 JOB_MAX_STEPS = _int("TIVM_JOB_MAX_STEPS", 24)
 JOB_TIMEOUT = _int("TIVM_JOB_TIMEOUT", 1800)
 KEEP_JOBS = _int("TIVM_KEEP_JOBS", 100)
+
+BOX_TOKEN = os.environ.get("TIVM_TOKEN", "")
+ALLOWED_REPOS = frozenset(repo.strip() for repo in os.environ.get("TIVM_ALLOWED_REPOS", "").split(",") if repo.strip())

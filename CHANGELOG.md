@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Require hosted API authentication and a trusted-repository allowlist; reject fork PRs and pin the accepted commit before setup.
+- Deduplicate webhook deliveries transactionally, claim jobs atomically and recover interrupted jobs with an explicit unknown outcome.
+- Preserve cancelled/superseded states, require one worker per dev box, authenticate box control requests, escape dashboard data and contain report paths.
+
+
 Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
 file.
 

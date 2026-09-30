@@ -114,8 +114,9 @@ RUN mkdir -p /root/Documents /root/Downloads /root/projects && \
     'Documents, Downloads and projects are in this home folder.' \
     > /root/Documents/README.txt
 
+COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m venv --system-site-packages /opt/venv \
-  && /opt/venv/bin/pip install --no-cache-dir fastapi uvicorn pillow requests pyyaml
+  && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \

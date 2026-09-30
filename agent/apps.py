@@ -352,6 +352,11 @@ def prepare(request, run_dir, log=print):
     os.makedirs(run_dir, exist_ok=True)
     if request.get("repo"):
         repo_dir = clone(request["repo"], ref=request.get("ref"), pr=request.get("pr"), log=log)
+        expected_sha = request.get("expected_sha")
+        if expected_sha:
+            actual_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo_dir, text=True).strip()
+            if actual_sha != expected_sha:
+                raise PrepareError("PR changed after intake; refusing to report results for a different commit")
     elif request.get("local_dir"):
         repo_dir = os.path.abspath(request["local_dir"])
     else:

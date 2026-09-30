@@ -15,6 +15,8 @@ class Box:
     def __init__(self, url=None, session=None, log=print):
         self.url = (url or config.BOX_URL).rstrip("/")
         self.session = session or requests.Session()
+        if config.BOX_TOKEN:
+            self.session.headers["Authorization"] = f"Bearer {config.BOX_TOKEN}"
         self.log = log
 
     def start(self, app, tasks=None, max_steps=None):

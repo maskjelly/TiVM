@@ -46,11 +46,14 @@ class GitHub:
 
     def permission(self, repo, user):
         if not self.token:
-            return "write"
+            return ""
         data = self._request("GET", f"/repos/{repo}/collaborators/{user}/permission")
         if not data:
             return ""
         return data.get("permission", "")
+
+    def pull_request(self, repo, pr):
+        return self._request("GET", f"/repos/{repo}/pulls/{pr}")
 
     def upsert_comment(self, repo, pr, body):
         comments = self._request("GET", f"/repos/{repo}/issues/{pr}/comments?per_page=100") or []
