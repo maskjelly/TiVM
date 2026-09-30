@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -145,6 +146,15 @@ class RepoTests(unittest.TestCase):
         with open(os.path.join(dest, "app.txt")) as fh:
             self.assertEqual(fh.read(), "feature\n")
         self.assertTrue(apps._sha(dest))
+
+    def test_pr_head_mismatch_never_runs_setup(self):
+        with tempfile.TemporaryDirectory(prefix="tivm-pin-") as root:
+            with patch.object(apps, "clone", return_value=root), \
+                 patch.object(apps.subprocess, "check_output", return_value="actual-sha\n"), \
+                 patch.object(apps, "run_setup") as setup:
+                with self.assertRaisesRegex(apps.PrepareError, "PR changed"):
+                    apps.prepare({"repo": "owner/app", "pr": 12, "expected_sha": "expected-sha"}, root)
+                setup.assert_not_called()
 
     def test_prepare_end_to_end_with_local_dir(self):
         root = tempfile.mkdtemp(prefix="tivm-prep-")
