@@ -5,13 +5,6 @@
 - Require hosted API authentication and a trusted-repository allowlist; reject fork PRs and pin the accepted commit before setup.
 - Deduplicate webhook deliveries transactionally, claim jobs atomically and recover interrupted jobs with an explicit unknown outcome.
 - Preserve cancelled/superseded states, require one worker per dev box, authenticate box control requests, escape dashboard data and contain report paths.
-
-
-Versions are cut from merged pull requests and tagged on `main`. Earlier releases pre-date this
-file.
-
-## Unreleased — launch readiness
-
 - Local Docker ports now bind to loopback by default; per-task automation has a finite 40-step
   default budget.
 - Added a container-based CI workflow for the existing Python unit suite, Dependabot, a security
@@ -19,6 +12,7 @@ file.
   `docs/READINESS.md`.
 - Rewrote the project overview to explain the product, surface the demonstrated replay result, and
   state the pre-1.0 and trusted-code limits clearly.
+- Updated the README, hosted guide, architecture notes, and contributor setup to match the current code and trust limits.
 
 ## 0.6.0 — replay: repeat a flow without calling the model
 
@@ -40,7 +34,7 @@ file.
   **0 planner tokens** (34 s + 64 s vs 216 s + 41 s exploring).
 - **Tests** — 11 new stdlib cases (46 total): normalisation/assertions, target matching, trace
   round trip, successful replay, divergence on missing target and on wrong final state.
-- First slice of P3 in `docs/HOSTED.md`; budget/proxy work remains.
+- Budget and provider proxy work remains.
 
 ## 0.5.1 — rove desktop fix: vendored seccomp profile, kernel 5.15
 

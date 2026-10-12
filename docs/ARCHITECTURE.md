@@ -2,7 +2,7 @@
 
 ```
 ┌─ your machine ─────────────────────────────────────────────────────────────────┐
-│  colima VM (2 vCPU / 4 GB / 40 GB)          make status shows this             │
+│  Docker host (Colima VM on macOS)          make status shows this             │
 │  ┌─ docker ────────────────────────────────────────────────────────────────┐   │
 │  │  dev box: tivm-desktop container (ephemeral, wiped on every start)      │   │
 │  │                                                                         │   │
@@ -16,6 +16,7 @@
 │                                                                  │         │   │
 │  ./agent (ro)  ── code mounted into the container                │         │   │
 │  ./runs (rw)   ◄── verdicts, screenshots, timelines ─────────────┘         │   │
+│  ./traces (rw) ◄── recorded replay actions and checks                      │   │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -23,7 +24,7 @@
 
 | file | responsibility |
 | ---- | -------------- |
-| `config.py` | every question, threshold and model setting — the single file to review |
+| `config.py` | model settings, thresholds, and TypeSafe questions |
 | `loop.py` | the Runner: perceive → decide → act → settle, suite execution, verdicts, timeline, artifacts |
 | `a11y.py` | AT-SPI walk (roles, names, extents, focused/value), widget invocation |
 | `apps.py` | `.tivm.yml` app contract, inference fallback, clone at ref/PR, setup, launch, readiness |
@@ -98,14 +99,14 @@ but still export everything captured so far.
 | `TIVM_A11Y_SKIP_OCR_MIN` | `10` | a11y widget count above which OCR is skipped |
 | `TIVM_OCR_SCALE` | `2` | tesseract upscale factor |
 | `TIVM_CHANGE_RATIO` | `0.004` | pixel-diff ratio counted as a screen change |
-| `TIVM_MAX_STEPS` | `0` | 0 = unlimited |
+| `TIVM_MAX_STEPS` | `40` | action limit per task |
 | `TIVM_MAX_WAITS` | `20` | consecutive waits allowed before aborting |
 | `TIVM_WAIT_SECONDS` | `5` | duration of one `wait` action |
 | `TIVM_STALL_LIMIT` | `4` | actions with no screen change before aborting |
 | `TIVM_SETTLE_MIN` / `TIVM_SETTLE_TIMEOUT` / `TIVM_COMMAND_SETTLE_TIMEOUT` | `0.35` / `1.5` / `10` | settle timings in seconds |
 | `TIVM_TYPE_RETURN` | `1` | press Return after typing |
 | `TIVM_BLOCKED_THRESHOLD` / `TIVM_MIN_CONFIDENCE` | `0.70` / `0.35` | Jev planner thresholds |
-| `TIVM_TOKEN` | empty | if set, mutating endpoints require `Authorization: Bearer <token>` |
+| `TIVM_TOKEN` | empty | if set, `/api/run`, `/api/prepare`, and `/api/stop` require `Authorization: Bearer <token>` |
 | `TIVM_KEEP_RUNS` | `20` | artifact folders kept on disk |
 | `TIVM_VIDEO` | `1` | record the desktop with ffmpeg (needs ffmpeg in the image) |
 | `TIVM_VIDEO_FPS` / `TIVM_VIDEO_CRF` | `10` / `30` | capture rate and quality |
@@ -122,7 +123,7 @@ but still export everything captured so far.
 | method | path | purpose |
 | ------ | ---- | ------- |
 | `POST` | `/api/run` | `{tasks: [...], max_steps?, app?}` → start a suite; with `app` the repo is prepared first, and with no `tasks` the contract's flows are the suite |
-| `POST` | `/api/prepare` | `{repo, ref?\|pr?, dir?, run?, url?, ...}` → clone, setup, launch and wait for readiness; no model calls |
+| `POST` | `/api/prepare` | `{repo, ref?, pr?, dir?, run?, url?, ...}` → clone, setup, launch and wait for readiness; no model calls |
 | `POST` | `/api/stop` | stop after the current action |
 | `GET` | `/api/state` | live state: status, timeline, plan, frame, tokens |
 | `GET` | `/api/system` | version, uptime, CPU, memory, disk, runs on disk |
@@ -134,5 +135,4 @@ but still export everything captured so far.
 
 ## Persistence
 
-The container filesystem is wiped at every start (entrypoint) and destroyed on recreate;
-`./runs` (artifacts) and `./agent` (code) are the only host mounts. See the README table.
+The container filesystem is wiped at every start. The host mounts `./agent` and `./tests` read-only and keeps `./runs` (artifacts) and `./traces` (replay records) across starts. See [`docker-compose.yml`](../docker-compose.yml).

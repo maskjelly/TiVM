@@ -2,19 +2,26 @@
 
 ## Setup
 
+Install Docker with Compose. On macOS, install Colima, then start its VM:
+
 ```sh
-brew install colima docker docker-compose   # macOS; Linux: docker + compose plugin
-make vm        # 2 vCPU / 4 GB / 40 GB VM
-make up        # build the sandbox image and start it (~5 min first time)
-cp .env.example .env   # OPENAI_API_KEY (default planner) and/or TYPESAFE_API_KEY
+brew install colima docker docker-compose
+make vm
+```
+
+On macOS or Linux, configure a planner key before starting the desktop:
+
+```sh
+cp .env.example .env
+# Set OPENAI_API_KEY, or set TYPESAFE_API_KEY and TIVM_PLANNER=jev.
+make up
 ```
 
 Panel at http://localhost:6081, desktop at http://localhost:6080/vnc.html?autoconnect=1&resize=scale.
 `make status` shows the VM, container, images and disk usage. `make check` prints the toolchain
 inside the sandbox. Nothing runs until you press **Run tests** (or `POST /api/run`).
 
-Dev box lifecycle: `make boxes` lists boxes, `make kill` removes containers and prunes images,
-`make nuke` also deletes the VM (reclaims RAM and disk; next start rebuilds, ~6-8 min).
+`make boxes` lists containers. `make kill` removes containers and prunes images. `make nuke` also deletes the Colima VM and its disk.
 
 ## Layout
 
@@ -42,11 +49,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). The short version:
 
 ## Validation
 
-The repository has a Python unit suite, run in CI inside the desktop image. You can run it locally
-with `make up && make test`. For changes to desktop behavior, also validate the full product flow:
+CI runs the Python unit suite inside the desktop image. Run it locally with `make test` after `make up`. For changes to desktop behavior, also check a full run:
 
-1. `make up`, open the panel, run `check toolchain` (a preset) — verifies the sandbox and the loop.
-2. Run a repo task: `Clone https://github.com/owner/repo and show its files`.
-3. Inspect `runs/<id>/timeline.json` and `task-N-final.jpg` when something goes wrong.
+1. Open the panel and run the `toolchain` preset.
+2. Run the [included todo app suite](docs/DEMO.md).
+3. Check the verdict, timeline, screenshot, and report in `runs/<id>/`.
 
 Offline syntax check: `python3 -m py_compile agent/*.py` (uses only stdlib).

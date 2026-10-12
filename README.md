@@ -2,285 +2,94 @@
 
 [![CI](https://github.com/maskjelly/TiVM/actions/workflows/ci.yml/badge.svg)](https://github.com/maskjelly/TiVM/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#install)
-[![Version](https://img.shields.io/badge/status-pre--1.0-orange.svg)](CHANGELOG.md)
 
-**TiVM runs end-to-end tests by using a disposable Linux desktop like a person would.** Give it a
-task in plain English or define app flows in `.tivm.yml`. It reads the UI through Linux's
-accessibility tree, acts through accessible controls or keyboard and mouse, and saves a verdict,
-step history, screenshot, and video for review. Passing flows can be replayed without another
-planner call.
+TiVM runs UI tests in a disposable Linux desktop. Give it a task, or add flows to a repository's `.tivm.yml` file. TiVM reads accessible controls and screenshots. A model chooses actions. TiVM saves verdicts, screenshots, video, and a step history. It can replay a passing flow without a new planner call. Replay checks the recorded actions and final state.
 
-TiVM is an open-source testing tool for teams that need to exercise complete user journeys,
-including interfaces that are awkward to cover with DOM-only tests. The project is pre-1.0: treat
-results as reviewable automation, not a substitute for deterministic assertions or human QA.
+TiVM is a pre-1.0 prototype for local use and trusted repositories. Its results need review. The included todo app shows how replay works; it is not a reliability benchmark.
 
-![Control panel](docs/panel.png)
-*Control panel: live desktop with the chosen target boxed, task/step chrome, the orchestrator's
-plan and memory, per-step timeline, and per-task verdicts with failure detail.*
+![TiVM control panel](docs/panel.png)
 
-![Run history](docs/runs.png)
-*Run history: every completed suite is exported to `runs/<id>/` and can be reopened here with its
-timeline, verdicts, token usage and artifacts.*
+## Quick start
 
-**Prototype evidence:** the included todo app completed both contract flows in a hosted run in
-September 2026; the recorded replay completed those flows with zero planner tokens. These are
-single-app demonstrations, not broad reliability benchmarks. Details and limits are in
-[the hosted-runner notes](docs/HOSTED.md).
-
-> **Security:** use only trusted repositories and tasks that you are comfortable running in a
-> container. TiVM's container is not a hardened boundary. Public pull-request execution is not
-> enabled for untrusted code; see [SECURITY.md](SECURITY.md) and the [readiness plan](docs/READINESS.md).
-
----
-
-## Contents
-
-- [Install](#install) · [Configure keys](#configure-keys) · [Run](#run) · [Access](#access)
-- [Running tests](#running-tests) · [What happens during a run](#what-happens-during-a-run)
-- [Verdicts and artifacts](#verdicts-and-artifacts) · [Dev box lifecycle](#dev-box-lifecycle)
-- [Configuration](#configuration) · [Troubleshooting](#troubleshooting)
-- [Security](SECURITY.md)
-- [Demo walkthrough](docs/DEMO.md) · [Architecture](docs/ARCHITECTURE.md) · [Readiness](docs/READINESS.md) · [Hosted service plan](docs/HOSTED.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Prior art](#prior-art)
-
-## Install
-
-Requirements: Docker CLI + a Linux VM. On macOS that is [colima](https://github.com/abiosoft/colima)
-(free, no Docker Desktop needed). On Linux, plain Docker works — skip `make vm`.
+You need Docker with Compose. On macOS, install [Colima](https://github.com/abiosoft/colima) to run the Linux desktop. On Linux, use an active Docker daemon.
 
 ```sh
-# macOS
+# macOS only
 brew install colima docker docker-compose
-make vm            # 2 vCPU / 4 GB RAM / 40 GB disk VM (one time)
+make vm
 
-# Linux: just make sure docker + compose are installed and the daemon runs
-
-make up            # builds the dev-box image and starts it (~6-8 min the first time)
-```
-
-`make up` always starts fresh (removes the old box, prunes dangling layers, rebuilds if needed).
-`make status` (or `make boxes`) shows the VM, containers, images and disk usage at any time.
-
-## Configure keys
-
-Copy the example file and fill in at least one key:
-
-```sh
+# macOS or Linux
 cp .env.example .env
+# Set OPENAI_API_KEY in .env. Or set TYPESAFE_API_KEY and TIVM_PLANNER=jev.
+make up
 ```
 
-| key | needed for | notes |
-| --- | ---------- | ----- |
-| `OPENAI_API_KEY` | the default planner (`TIVM_PLANNER=openai`) | screenshot → JSON action; can write shell commands |
-| `TYPESAFE_API_KEY` | the alternative planner (`TIVM_PLANNER=jev`) | typed questions only; needs credits on the org or every step returns HTTP 402 |
+Open the [control panel](http://localhost:6081). Enter one task per line and select **Run tests**. For example:
 
-`.env` is git-ignored: **never commit real keys**. The container reads it through
-`docker compose`'s `env_file`, nothing is baked into the image.
-
-## Run
-
-```sh
-make up        # start the dev box (idempotent; always fresh)
-make down      # stop it
-make logs      # follow container logs
+```text
+Open a terminal and run "uname -a"
+Open the file manager and open the Documents folder
 ```
 
-## Access
+The [live desktop](http://localhost:6080/vnc.html?autoconnect=1&resize=scale) is on port 6080. Both ports bind to `127.0.0.1` by default.
 
-| what | URL |
-| ---- | --- |
-| Control panel (type tests, watch decisions) | http://localhost:6081 |
-| Desktop, live in the browser (noVNC) | http://localhost:6080/vnc.html?autoconnect=1&resize=scale |
-| Verdict JSON of the current/last run | http://localhost:6081/api/result |
-| Raw log | panel header → **Log** |
+| Command | Action |
+| --- | --- |
+| `make up` | Recreate and start the desktop container. |
+| `make down` | Stop the container. |
+| `make status` | Show the VM, containers, images, and disk use. |
+| `make logs` | Follow desktop logs. |
+| `make test` | Run the Python unit suite in the container. |
 
-Ports bind to `127.0.0.1` by default, so the panel and live desktop are local to your machine.
-To access them from another device on a trusted network, set `TIVM_BIND=0.0.0.0` and configure
-`TIVM_TOKEN` before starting TiVM. The token protects the API, but noVNC itself is not an
-authenticated remote desktop; do not expose it to the public internet.
+`make up` recreates the container. Files in the container are temporary; `runs/` and `traces/` persist on the host. Keep API keys in `.env`, which Git ignores.
 
-## Running tests
+## Test an app repository
 
-Type one test per line in the panel and press **Run tests** (⌘/Ctrl+Enter). Each line is an
-independent test case with its own verdict.
-
-```
-Open a terminal and run "uname -a && node -v && bun -v"
-Clone https://github.com/owner/repo and show its files
-Open the file manager and open the "Documents" folder
-```
-
-Nothing runs until you trigger it. From CI or a script, the same thing over HTTP:
-
-```sh
-curl -X POST localhost:6081/api/run \
-  -H 'Content-Type: application/json' \
-  -d '{"tasks": ["Open a terminal and run \"bun --version\""]}'
-```
-
-With `TIVM_TOKEN=secret`: add `-H 'Authorization: Bearer secret'`.
-
-### Testing a repo (app under test)
-
-Point a run at a repository and TiVM boots the app for you: it clones the ref (branch, tag or PR),
-reads `.tivm.yml`, installs and starts the app, waits until it answers, opens it in Firefox and
-then runs the tasks against it. With no `tasks`, the contract's flows are the suite.
-
-```sh
-curl -X POST localhost:6081/api/run -H 'Content-Type: application/json' -d '{
-  "app": {"repo": "maskjelly/TiVM", "ref": "main"},
-  "tasks": ["add a todo item \"write docs\" and confirm it appears"]
-}'
-```
-
-`.tivm.yml` (all keys optional except a way to run and a URL):
+TiVM can clone a repository, install and start its app, wait for it to respond, then run its flows in Firefox. The included todo app is configured in [`.tivm.yml`](.tivm.yml):
 
 ```yaml
 tivm: 1
 app:
-  dir: examples/todo-app          # where the app lives in the repo
-  setup: ["bun install"]          # runs before the app, cached between runs
-  run: ["bun server.ts"]          # started detached; logs in prepare.log
-  url: "http://localhost:8080"
-  ready: "curl -sf http://localhost:8080/healthz"
-flows:                            # used when the run has no tasks
+  dir: examples/todo-app
+  setup: []
+  run: ["node server.mjs"]
+  url: "http://127.0.0.1:8080"
+  ready: "curl -sf http://127.0.0.1:8080/healthz"
+flows:
   - name: add-todo
     steps: In the Todos app, add a todo item "write docs" and confirm it appears in the list
-    expect: the item is visible in the list
+    expect: the item "write docs" is visible in the All list
+  - name: complete-todo
+    steps: Add a todo item "ship it", mark it done, open the Done filter and confirm it is listed there
+    expect: the Done filter lists the completed item
 ```
 
-Flows that pass are recorded as traces and replayed on later runs without any model calls; a
-divergence (missing target, wrong final state) falls back to the planner automatically.
-`TIVM_REPLAY=0` turns that off. Traces live in `./traces` on the host.
+Start that suite through the API. TiVM uses the contract flows when `tasks` is omitted:
 
-No contract? A `package.json` is enough: the lockfile or `packageManager` picks the installer,
-`dev`/`start`/`preview`/`serve` picks the script, framework ports or `--port` pick the URL.
-`POST /api/prepare` runs just clone → setup → start → ready (no tests, no model calls) and returns
-the app info; useful when wiring a new repo.
-
-## What happens during a run
-
-```
-perceive (a11y + optional OCR) → one planner call → act → settle → repeat
+```sh
+curl -fsS -X POST http://localhost:6081/api/run \
+  -H 'Content-Type: application/json' \
+  -d '{"app":{"repo":"maskjelly/TiVM","ref":"main"}}'
 ```
 
-- **Perceive** — walk the AT-SPI tree (~50 ms): real widgets with role, name, coordinates,
-  focus and values. Off-screen nodes are filtered. OCR (tesseract) or OpenAI vision can be
-  enabled as a fallback for surfaces a11y cannot see.
-- **Decide** — one call to the planner with the screenshot (OpenAI) or typed questions (Jev).
-  The planner is an orchestrator with memory: it maintains a `plan`, a `memory` string and a
-  self-`check` for each action, all carried across steps so it stays on task.
-- **Act** — accessibility `invoke` when the widget supports it (no mouse), otherwise `xdotool`.
-  Typing presses Return by default; empty targets are refused with corrective feedback.
-- **Settle** — poll until the frame stops changing (0.35 s min, up to 10 s after commands).
+If you set `TIVM_TOKEN`, add `-H 'Authorization: Bearer <your-token>'` to API requests that start, prepare, or stop runs.
 
-Guards: `done`/`blocked` from the planner, 4 identical actions, 4 no-change actions, 20
-consecutive waits, Stop. Each task has a 40-step budget by default (`TIVM_MAX_STEPS=40`); raise
-it for longer flows.
+To run your own task, pass `"tasks":["..."]` with the `app` object. Without a contract, TiVM can infer setup, start script, and URL from a Node app's `package.json`; add `.tivm.yml` when inference is wrong. `POST /api/prepare` checks only clone, setup, start, and readiness.
 
-## Verdicts and artifacts
+Once the suite completes, open the [run history](http://localhost:6081) in the panel or inspect `runs/<id>/report.html`. A second run can replay passing flows. TiVM falls back to the planner if replay cannot find a target or confirm the final state. Set `TIVM_REPLAY=0` to disable replay.
 
-Each task ends with `PASS`/`FAIL` and a reason. A failed task never stops the suite — remaining
-tasks still run, and the final verdict is the aggregate (e.g. `1/2 passing`).
+## Results and limits
 
-Failures carry the full story (panel, `/api/result` and the JSON artifacts):
+Each task has a pass or fail verdict, a reason, and a step timeline. A failed task does not stop the other tasks. Run artifacts include `run.json`, `timeline.json`, task JSON, final screenshots, and an HTML report. TiVM also saves video when recording is enabled and `ffmpeg` is available. Artifacts can contain app data and typed text. Review them before sharing.
 
-```json
-{
-  "task": "Open the file manager and open the \"NONEXISTENT\" folder",
-  "passed": false,
-  "reason": "blocked: an error, auth prompt or missing target prevents progress",
-  "failure": {
-    "stage": "decide",          // decide | act | settle | wait | limit | error
-    "step": 4,
-    "action": "type",           // what it was doing
-    "target_text": null,        // where
-    "typed": "root/Documents",
-    "check": "the folder opens",
-    "focused_window": "File System - Thunar",
-    "screen": "…terminal tail…",
-    "elements": ["File", "Edit", "View", "Documents", "Downloads", "…"]
-  }
-}
-```
+The default limit is 40 actions per task. Change it with `TIVM_MAX_STEPS`. TiVM can also stop when actions repeat, the screen does not change, or the planner reports a blocker. A passing verdict is model guided and can be wrong; check the report and add deterministic assertions where accuracy matters.
 
-Every finished suite is exported to the host:
+**Security:** app setup scripts and model chosen commands run in the desktop container. It receives the API keys from `.env`. Use only repositories and tasks you trust. The container is not a security boundary for hostile code. The hosted runner accepts trusted repositories only and rejects fork pull requests. See [Security](SECURITY.md) and [Readiness](docs/READINESS.md).
 
-```
-runs/<timestamp>/run.json            suite summary + per-task results (failures included)
-runs/<timestamp>/task-N.json         verdict, steps, tokens, duration, failure
-runs/<timestamp>/task-N-final.jpg    annotated final screen
-runs/<timestamp>/task-N.mp4          video of the whole task
-runs/<timestamp>/task-N-failure.mp4  last seconds before a failed verdict
-runs/<timestamp>/screen.mp4          full-suite recording (source of the task clips)
-runs/<timestamp>/report.html         shareable report: verdicts, videos, failure story
-runs/<timestamp>/timeline.json       every step: action, reason, check, timings, tokens
-```
+## Documentation
 
-Artifacts can contain app data, screenshots, and typed task content. Review them before sharing a
-report or committing a run.
-
-The report is also reachable live at `http://localhost:6081/runs/<id>/report.html`
-(or `/api/runs/<id>/report`, which regenerates it). `TIVM_VIDEO=0` turns recording off.
-
-`make runs` lists them, `make wipe-runs` deletes them, `TIVM_KEEP_RUNS` (default 20) auto-prunes.
-
-## Dev box lifecycle
-
-One running sandbox = one **dev box** (container inside the colima VM). Nothing survives a start:
-repos, installs, caches and browser profiles are wiped by the entrypoint on every boot, so runs
-never inherit state.
-
-| command | what it does |
-| ------- | ------------ |
-| `make boxes` | list dev boxes: containers, VM, disk footprint |
-| `make kill` | stop/remove boxes, prune images (keeps `./runs` artifacts) |
-| `make nuke` | kill boxes + delete the VM → reclaims RAM and ~GBs of disk |
-| `make clean` | prune dangling images and build cache |
-
-## Hosted deployment
-
-The [hosted guide](docs/HOSTED.md#required-hosted-configuration) covers API authentication, trusted repository setup, deduplicated webhooks, cancellation, recovery and rollback. Hosted execution accepts trusted repositories only and rejects fork PRs.
-
-## Configuration
-
-All settings live in `agent/config.py` with env-var overrides; the ones you are likely to touch:
-
-| variable | default | meaning |
-| -------- | ------- | ------- |
-| `TIVM_PLANNER` | `openai` | `openai` (sees pixels, writes commands) or `jev` (cheap, text-only) |
-| `TIVM_OPENAI_PLANNER_MODEL` | `gpt-5.6-sol` | planner model |
-| `TIVM_OPENAI_REASONING_EFFORT` | `none` | keep it non-reasoning for speed/cost |
-| `TIVM_OPENAI_VISION_MODEL` | `gpt-5.6-sol` | model for `TIVM_PERCEPTION=vision` |
-| `TIVM_PERCEPTION` | `hybrid` | `hybrid` (a11y + tesseract for Jev) · `a11y` · `vision` |
-| `TIVM_MAX_STEPS` | `40` | default action budget per task |
-| `TIVM_TOKEN` | empty | bearer token required on `/api/run` and `/api/stop` |
-| `TIVM_KEEP_RUNS` | `20` | artifact folders kept on disk |
-| `SCREEN_W` / `SCREEN_H` | `1280` / `800` | dev box resolution |
-
-The full list (waits, settle timings, thresholds, OCR scale, retries) is in
-[`agent/config.py`](agent/config.py). The HTTP API is documented in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#http-api).
-
-## Troubleshooting
-
-| symptom | fix |
-| ------- | --- |
-| `error creating lima disk: disk 'colima' already exists` | `make nuke` (clears `~/.colima/_lima/_disks`), then `make vm && make up` |
-| `Bind for 0.0.0.0:6080 failed: port is already allocated` | another dev box is running: `make boxes`, then `make kill` or `make down` |
-| noVNC shows "disconnected" | the container restarted; `make up` brings it back (~20 s, no rebuild) |
-| every Jev step returns HTTP 402 | the TypeSafe org has no credits — top up or switch to `TIVM_PLANNER=openai` |
-| first browser task clicks a privacy notice | expected once per box; the agent dismisses it |
-| panel unreachable after a VM restart | `make up`; check `make status` |
-| builds feel slow / disk filling | `make clean` (prunes images + build cache), `TIVM_KEEP_RUNS=5` |
-
-## Prior art
-
-[awlevin/typesafe-computer-use](https://github.com/awlevin/typesafe-computer-use) does the same
-OCR + classifier loop on macOS and is well worth reading. Differences here: Linux + AT-SPI as the
-primary perception path, a11y `invoke` instead of synthetic clicks, disposable Docker dev boxes,
-and a planner with plan/memory/self-check.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+- [Demo walkthrough](docs/DEMO.md) — run and review the included todo app.
+- [Architecture](docs/ARCHITECTURE.md) — components, API, configuration, and persistence.
+- [Hosted runner](docs/HOSTED.md) — trusted repository setup and operating steps.
+- [Readiness](docs/READINESS.md) — work required for a wider pilot.
+- [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [MIT license](LICENSE)
